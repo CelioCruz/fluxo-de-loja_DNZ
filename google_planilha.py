@@ -1,7 +1,8 @@
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.auth.exceptions import DefaultCredentialsError
 from typing import Dict, List
 import streamlit as st
+import os
 
 class GooglePlanilha:
     def __init__(self):
@@ -15,18 +16,31 @@ class GooglePlanilha:
             self.aba_relatorio = self.planilha.worksheet("relatorio")
 
     def _criar_conexao(self):
-        """Cria a conexão com o Google Sheets usando a nova conta de serviço"""
+        """Cria a conexão com o Google Sheets usando credenciais seguras"""
         try:
-            # ✅ Carrega as credenciais do secrets.toml
-            credenciais = st.secrets["gcp_service_account"]
+            # ✅ Tenta carregar do secrets.toml (Streamlit) ou variáveis de ambiente (Render)
+            if 'GCP_PROJECT_ID' in os.environ:
+                # 🔹 Modo Render: usa variáveis de ambiente
+                credenciais = {
+                    "type": "service_account",
+                    "project_id": os.environ["GCP_PROJECT_ID"],
+                    "private_key_id": os.environ["GCP_PRIVATE_KEY_ID"],
+                    "private_key": os.environ["GCP_PRIVATE_KEY"].replace("\\n", "\n"),
+                    "client_email": os.environ["GCP_CLIENT_EMAIL"],
+                    "client_id": os.environ["GCP_CLIENT_ID"],
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                    "client_x509_cert_url": os.environ["GCP_CLIENT_X509_CERT_URL"],
+                    "universe_domain": "googleapis.com"
+                }
+            else:
+                # 🔹 Modo Streamlit: usa secrets.toml
+                credenciais = st.secrets["gcp_service_account"]
 
-            # ✅ Usa gspread moderno (não use ServiceAccountCredentials)
-            import gspread
-            from google.auth.exceptions import DefaultCredentialsError
-
-            # Cria cliente diretamente a partir do dicionário
+            # ✅ Conecta com gspread
             client = gspread.service_account_from_dict(credenciais)
-
+            
             # Armazena na sessão
             st.session_state.gsheets_client = client
             st.session_state.planilha_atendimento = client.open("fluxo de loja")
@@ -36,7 +50,7 @@ class GooglePlanilha:
             self.aba_vendedores = self.planilha.worksheet("vendedor")
             self.aba_relatorio = self.planilha.worksheet("relatorio")
 
-            # Verifica se a estrutura da planilha está correta
+            # Verifica estrutura
             self._verificar_estrutura()
 
         except Exception as e:
@@ -53,7 +67,7 @@ class GooglePlanilha:
                 'PESQUISA', 'CONSULTA', 'HORA'
             ]
 
-            if len(cabecalhos) < 12 or cabecalhos[:12] != colunas_esperadas: # type: ignore
+            if len(cabecalhos) < 12 or cabecalhos[:12] != colunas_esperadas:
                 st.warning(
                     "⚠️ A estrutura da planilha 'relatorio' não corresponde ao esperado.\n"
                     "Verifique se as colunas estão na ordem correta de A até L."
@@ -76,7 +90,6 @@ class GooglePlanilha:
     def registrar_atendimento(self, dados: Dict) -> bool:
         """Registra um novo atendimento usando append_row (mais rápido e seguro)"""
         try:
-            # Mapeamento dos campos para as colunas na ordem correta
             mapeamento = [
                 ('loja', 'LOJA'),
                 ('vendedor', 'VENDEDOR'),
@@ -91,14 +104,9 @@ class GooglePlanilha:
                 ('consulta', 'CONSULTA'),
                 ('hora', 'HORA')
             ]
-
-            # Prepara os valores na ordem correta
             valores = [str(dados.get(campo, '')).strip() for campo, _ in mapeamento]
-
-            # ✅ append_row é mais rápido e não precisa calcular linha
             self.aba_relatorio.append_row(valores, value_input_option='USER_ENTERED')
             return True
-
         except Exception as e:
             st.error(f"❌ Falha ao salvar no Google Sheets:\n{str(e)}")
             return False
@@ -120,20 +128,14 @@ class GooglePlanilha:
                 ('consulta', 'CONSULTA'),
                 ('hora', 'HORA')
             ]
-
-            # Campos obrigatórios
             campos_obrigatorios = ['loja', 'data']
             for campo in campos_obrigatorios:
                 if not dados.get(campo):
                     st.error(f"⚠️ Campo obrigatório faltando: {campo}")
                     return False
-
             valores = [str(dados.get(campo, '')).strip() for campo, _ in mapeamento]
-
-            # ✅ append_row (mais rápido)
             self.aba_relatorio.append_row(valores, value_input_option='USER_ENTERED')
             return True
-
         except Exception as e:
             st.error(f"❌ Falha ao salvar (sem vendedor): {str(e)}")
             return False

@@ -1,0 +1,45 @@
+{
+    "usuarios": [
+        {
+            "nome": "JUSCELIO",
+            "senha_hash": "$2b$12$OCL/M/L60yr0c.8wBOjERegaATppSvfEMMdzoeeRkmdRoJ6e8qGDy"
+        },
+        {
+            "nome": "LEONARDO",
+            "senha_hash": "$2b$12$tnVZGsVKFDJt2/KOj4ycXuf3JL2aXrct2H1KiKilkpqG9ujA9mQUu"
+        },
+        {
+            "nome": "LETICIA",
+            "senha_hash": "$2b$12$BJ/06/tp9NYtzN5L5VDxieKJF4Mg3m7OB4gUdYzli2DJJvP7xKYbK"
+        },
+        {
+            "nome": "LOJA01",
+            "senha_hash": "$2b$12$a20ckyJIIKdoYN4xWMG6g.JnnEXf87YiBuyD2D5f5DXrzhtS8AWje"
+        },
+        {
+            "nome": "LOJA02",
+            "senha_hash": "$2b$12$vj0rPeGJkf8OHN0Zu8zLqOHSxx7A.vfBn5vJ9bzJOgowKLJ7fnaQ2"
+        },
+        {
+            "nome": "LOJA03",
+            "senha_hash": "$2b$12$Eh8vbjfeOw4f.zZJibi7yuf/VkJ1l0v14Jg2cXWPA5J7Ydt3rbz66"
+        },
+        {
+            "nome": "LOJA04",
+            "senha_hash": "$2b$12$0PXWlSi4GCe0Rz47/MzIa.omljSZjDd7muBHo6FLPcQLB1rEKVCmy"
+        },
+        {
+            "nome": "LOJA05",
+            "senha_hash": "$2b$12$levBMRRoRjDfaZWnbgHyt.KZz6XStrRNB8S.sZqRXVofKv7/HCDaW"
+        },
+        {
+            "nome": "LOJA06",
+            "senha_hash": "$2b$12$Itz0tAAyAuYKkBOSzOuTbORtkQlDGBLMhxFP2phFnEwSL62eHD5.a"
+        },
+        {
+            "nome": "LOJA07",
+            "senha_hash": "$2b$12$FKhFz31SIgAF2a6fxM/fz.Q40P0/AiO3IJhc4Qh226ryFCk8jId1C"
+        }
+ ]
+    
+}

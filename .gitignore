@@ -1,0 +1,20 @@
+# Ambiente virtual
+venv/
+env/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# Arquivos temporários
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# Streamlit
+/.streamlit/
+
+# Secrets
+.streamlit/secrets.toml
+secrets.toml

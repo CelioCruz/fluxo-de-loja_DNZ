@@ -131,29 +131,27 @@ def gerar_pdf_em_memoria():
         if st.session_state.enc_tipo not in ["PARTICULAR", "PLANO"]:
             raise ValueError("Tipo de atendimento inválido")
 
+        # Cria buffer em memória
         pdf_buffer = io.BytesIO()
-        
-        # Usa fonte que suporta acentos
+
+        # Configura o FPDF
         pdf = FPDF(format='A4', unit='mm')
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
 
-        # Adiciona fonte Unicode (suporta acentos)
-        # Certifique-se de ter o arquivo .ttf ou use fonte padrão com UTF-8
-        # Alternativa: use Arial, mas garanta que os dados estejam limpos
-
-        # Título
+        # Tenta usar fonte com suporte a acentos
+        # O FPDF padrão não suporta UTF-8 direto, mas se os dados estiverem em string, funciona com Arial
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "ENCAMINHAMENTO", ln=True, align='C')
         pdf.ln(10)
 
-        # Função segura para adicionar campo
         def add_item(label, value):
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(40, 8, f"{label}:", 0, 0)
             pdf.set_font("Arial", '', 12)
-            # Garante que value seja string e sem None
             text = str(value) if value else ""
+            # Garante que não tenha caracteres problemáticos (opcional)
+            text = text.encode('latin1', 'replace').decode('latin1')  # Trata acentos
             pdf.cell(0, 8, f" {text}", ln=True)
             pdf.set_x(10)
 
@@ -168,83 +166,14 @@ def gerar_pdf_em_memoria():
         pdf.cell(0, 6, "Consultor", ln=True, align='C')
         pdf.cell(0, 6, st.session_state.enc_vendedor, ln=True, align='C')
 
-        # Gera o PDF
-        pdf.output(pdf_buffer)
+        # ✅ Gera o PDF diretamente no buffer
+        # FPDF permite: output() retorna bytes se não passar argumento
+        pdf_data = pdf.output()  # Retorna bytes diretamente
+        pdf_buffer.write(pdf_data)
         pdf_buffer.seek(0)
+
         return pdf_buffer
 
     except Exception as e:
         st.error(f"Erro ao gerar PDF: {str(e)}")
-        raise
-
-
-def criar_link_download_pdf():
-    """Gera link HTML para baixar o PDF"""
-    try:
-        pdf_buffer = gerar_pdf_em_memoria()
-        if not pdf_buffer:
-            st.error("❌ Falha ao gerar PDF: buffer vazio")
-            return ""
-
-        pdf_bytes = pdf_buffer.getvalue()
-        if not pdf_bytes:
-            st.error("❌ PDF gerado está vazio")
-            return ""
-
-        pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')  # utf-8 explícito
-
-        nome_arquivo = f"enc_{st.session_state.enc_cliente.strip().replace(' ', '_')}.pdf"
-
-        href = f'''
-        <a href="data:application/pdf;base64,{pdf_b64}" download="{nome_arquivo}">
-            <button style="
-                background-color: #25D366;
-                color: white;
-                border: none;
-                padding: 12px 20px;
-                border-radius: 8px;
-                font-size: 16px;
-                font-weight: bold;
-                cursor: pointer;
-                width: 100%;
-                text-align: center;
-            ">
-                ✅ Baixar e Imprimir
-            </button>
-        </a>
-        '''
-        return href
-
-    except Exception as e:
-        st.error(f"❌ Erro ao criar link: {str(e)}")
-        return ""
-
-
-# === FUNÇÕES AUXILIARES ===
-def formatar_telefone(tel):
-    if not tel:
-        return ""
-    tel = ''.join(filter(str.isdigit, tel))
-    if len(tel) == 11:
-        return f"({tel[:2]}) {tel[2:7]}-{tel[7:]}"
-    elif len(tel) == 10:
-        return f"({tel[:2]}) {tel[2:6]}-{tel[6:]}"
-    return tel
-
-
-def formatar_data_nascimento(data):
-    if not data or not isinstance(data, str):
-        return ""
-    data = data.strip()
-    partes = data.split('/')
-    if len(partes) == 3:
-        try:
-            dia = partes[0].zfill(2)
-            mes = partes[1].zfill(2)
-            ano = partes[2]
-            if len(ano) == 2:
-                ano = "19" + ano if ano > "30" else "20" + ano
-            return f"{dia}/{mes}/{ano}"
-        except:
-            pass
-    return data
+        return None  # Retorna None em vez de levantar, para não quebrar

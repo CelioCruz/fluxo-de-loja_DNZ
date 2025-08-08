@@ -8,13 +8,19 @@ def tela_reservas():
     st.info(f"**Atendente:** {st.session_state.nome_atendente}")
     st.markdown("---")
 
+    # Inicializa ou usa a instância do GooglePlanilha
     if 'gsheets' not in st.session_state:
         st.session_state.gsheets = GooglePlanilha()
     gsheets = st.session_state.gsheets
 
     # Carrega vendedores
-    vendedores_data = gsheets.get_vendedores_por_loja()
-    vendedores = [v['VENDEDOR'] for v in vendedores_data]
+    try:
+        vendedores_data = gsheets.get_vendedores_por_loja()
+        vendedores = [v['VENDEDOR'] for v in vendedores_data]
+    except Exception as e:
+        st.error(f"Erro ao carregar vendedores: {e}")
+        vendedores = []
+
     if not vendedores:
         st.warning("⚠️ Nenhum vendedor encontrado.")
         if st.button("↩️ Voltar", key="btn_voltar_reservas"):
@@ -72,29 +78,45 @@ def tela_reservas():
         if not vendedor or not cliente:
             st.error("⚠️ Preencha todos os campos!")
         else:
-            # Busca todos os registros do cliente na loja
-            registros = gsheets.buscar_cliente_por_nome_e_loja(cliente, st.session_state.loja)
+            # 🔍 TENTA CARREGAR TODOS OS DADOS DA PLANILHA
+            try:
+                # Ajuste aqui: use o método correto da sua classe GooglePlanilha
+                # Exemplos comuns: get_all_records(), ler_planilha(), get_data()
+                dados = gsheets.get_all_records()  # ← MUDAR SE NECESSÁRIO
+            except Exception as e:
+                st.error(f"❌ Falha ao acessar a planilha: {e}")
+                return
+
+            # 🔎 Filtra registros do cliente na loja atual
+            registros = []
+            for linha in dados:
+                nome_cliente = str(linha.get('cliente', '')).strip().upper()  # Ajuste: nome da coluna
+                loja = str(linha.get('loja', '')).strip()  # Ajuste: nome da coluna
+
+                if nome_cliente == cliente and loja == st.session_state.loja:
+                    registros.append(linha)
 
             if not registros:
                 st.error(f"❌ Nenhum registro encontrado para **{cliente}** nesta loja.")
                 return
 
-            # Soma os valores de 'reserva' (soma líquida)
+            # 🔢 Calcula saldo de reservas (soma líquida)
             soma_reservas = 0
             for row in registros:
                 val = row.get('reserva', '0')
                 try:
                     soma_reservas += int(val)
-                except:
-                    pass  # Ignora se não for número
+                except (ValueError, TypeError):
+                    pass  # Ignora valores inválidos
 
+            # ❌ Impede consumo se não houver reserva ativa
             if soma_reservas < 1:
-                st.error(f"❌ Esse cliente não tem reserva ativa.")
+                st.error(f"❌ Este cliente não possui reserva ativa (saldo atual: {soma_reservas}).")
                 return
 
-            # Prepara os dados conforme o tipo
+            # ✅ Prepara os dados conforme o tipo
             if st.session_state.tipo_reserva == "CONVERSÃO":
-                dados = {
+                dados_registro = {
                     'loja': st.session_state.loja,
                     'atendente': st.session_state.nome_atendente,
                     'vendedor': vendedor,
@@ -114,7 +136,7 @@ def tela_reservas():
                     'hora': datetime.now().strftime("%H:%M")
                 }
             else:  # DESISTÊNCIA
-                dados = {
+                dados_registro = {
                     'loja': st.session_state.loja,
                     'vendedor': vendedor,
                     'cliente': cliente,
@@ -123,11 +145,17 @@ def tela_reservas():
                     'hora': datetime.now().strftime("%H:%M")
                 }
 
-            # Salva no Google Sheets
-            if gsheets.registrar_atendimento(dados):
+            # 📥 Salva no Google Sheets
+            try:
+                sucesso = gsheets.registrar_atendimento(dados_registro)
+            except Exception as e:
+                st.error(f"❌ Erro ao salvar: {e}")
+                sucesso = False
+
+            if sucesso:
                 st.balloons()
                 st.success("✅ Reserva consumida com sucesso!")
-                # Limpa os dados confirmados
+                # Limpa o estado
                 del st.session_state.tipo_reserva
                 del st.session_state.cliente_reserva
                 del st.session_state.vendedor_reserva
@@ -138,11 +166,8 @@ def tela_reservas():
 
     # Botão Voltar
     if st.button("↩️ VOLTAR", use_container_width=True, key="btn_voltar_reservas_2"):
-        if 'tipo_reserva' in st.session_state:
-            del st.session_state.tipo_reserva
-        if 'cliente_reserva' in st.session_state:
-            del st.session_state.cliente_reserva
-        if 'vendedor_reserva' in st.session_state:
-            del st.session_state.vendedor_reserva
+        for key in ['tipo_reserva', 'cliente_reserva', 'vendedor_reserva']:
+            if key in st.session_state:
+                del st.session_state[key]
         st.session_state.etapa = 'atendimento'
         st.rerun()

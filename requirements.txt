@@ -1,5 +1,6 @@
 streamlit==1.32.0
 fpdf==1.7.2
-gspread
+gspread>=6.0.0
+gspread-service-account
 oauth2client
 bcrypt

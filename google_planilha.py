@@ -1,4 +1,5 @@
 import gspread
+from gspread.exceptions import AuthenticationError, APIError, SpreadsheetNotFound, WorksheetNotFound
 from typing import Dict, List
 import streamlit as st
 import os
@@ -15,8 +16,8 @@ class GooglePlanilha:
 
     def _criar_conexao(self):
         try:
-            # 🔹 Modo Render: variáveis de ambiente
             if 'GCP_PROJECT_ID' in os.environ:
+                st.info("🔐 Modo Render: carregando credenciais por variáveis de ambiente...")
                 credenciais = {
                     "type": "service_account",
                     "project_id": os.environ["GCP_PROJECT_ID"],
@@ -31,22 +32,25 @@ class GooglePlanilha:
                     "universe_domain": "googleapis.com"
                 }
             else:
-                # 🔹 Modo Streamlit: secrets.toml
+                st.info("🔐 Modo Local: carregando de secrets.toml...")
                 credenciais = st.secrets["gcp_service_account"]
 
-            # ✅ TESTE DE COMUNICAÇÃO: Autentica apenas
-            st.info("🔐 Testando autenticação com Google Sheets...")
+            # Mostra qual conta está sendo usada
+            st.write(f"📧 Conta de serviço: `{credenciais['client_email']}`")
+            st.write(f"📦 Projeto: `{credenciais['project_id']}`")
+
+            # ✅ Conecta com gspread
             client = gspread.service_account_from_dict(credenciais)
 
-            # ✅ TESTE 1: Tenta obter as planilhas disponíveis (sem abrir nenhuma específica)
-            st.info("📡 Conectando à API do Google Sheets...")
-            planilhas = client.openall()  # Não abre nenhuma, só verifica acesso à API
-            st.success(f"✅ Autenticação bem-sucedida! Encontrou {len(planilhas)} planilhas.")
+            # ✅ Testa acesso básico (sem abrir planilha)
+            st.info("📡 Testando conexão com API do Google Sheets...")
+            planilhas = client.openall()
+            st.success(f"✅ Conectado! {len(planilhas)} planilhas acessíveis.")
 
-            # Se chegou aqui, a conexão está OK → salva no session_state
+            # Salva cliente no session_state
             st.session_state.gsheets_client = client
 
-            # Agora abre a planilha específica
+            # Abre a planilha específica
             try:
                 st.info("📖 Abrindo planilha 'fluxo de loja'...")
                 planilha = client.open("fluxo de loja")
@@ -55,25 +59,27 @@ class GooglePlanilha:
                 self.aba_vendedores = planilha.worksheet("vendedor")
                 self.aba_relatorio = planilha.worksheet("relatorio")
                 st.success("✅ Planilha e abas carregadas com sucesso!")
-            except gspread.SpreadsheetNotFound:
+            except SpreadsheetNotFound:
                 st.error("❌ Planilha 'fluxo de loja' não encontrada. Verifique o nome exato.")
+                st.markdown("💡 Dica: Compartilhe a planilha com `fluxo-loja@fluxo-de-loja.iam.gserviceaccount.com` como **Editor**.")
                 st.stop()
-            except gspread.WorksheetNotFound as e:
+            except WorksheetNotFound as e:
                 st.error(f"❌ Aba não encontrada: {e}")
                 st.stop()
 
             self._verificar_estrutura()
 
-        except gspread.AuthenticationError as e:
-            st.error(f"🔐 Erro de autenticação: Verifique suas credenciais.\n{str(e)}")
+        except AuthenticationError as e:
+            st.error(f"🔐 Erro de autenticação. Credenciais inválidas ou expiradas.\n\nDetalhes: {str(e)}")
             st.stop()
 
-        except gspread.APIError as e:
-            st.error(f"🌐 Erro da API do Google Sheets:\n{str(e)}")
+        except APIError as e:
+            st.error(f"🌐 Erro da API do Google Sheets.\n\nResposta: {str(e)}")
             st.stop()
 
         except Exception as e:
-            st.error(f"❌ Falha ao conectar ao Google Sheets:\n{str(e)}")
+            st.error(f"❌ Falha inesperada ao conectar ao Google Sheets:\n\n`{str(e)}`")
+            st.exception(e)  # Mostra traceback no Streamlit (útil para debug)
             st.stop()
 
     def _verificar_estrutura(self):

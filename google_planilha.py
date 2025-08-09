@@ -18,8 +18,6 @@ class GooglePlanilha:
         try:
             # 🔹 Modo Render: variáveis de ambiente
             if 'GCP_PROJECT_ID' in os.environ:
-                st.write("🔐 Chave privada (primeiros 100 caracteres):", credenciais["private_key"][:100])
-                st.info("🔐 Modo Render: carregando credenciais por variáveis de ambiente...")
                 credenciais = {
                     "type": "service_account",
                     "project_id": os.environ["GCP_PROJECT_ID"],
@@ -27,7 +25,6 @@ class GooglePlanilha:
                     "private_key": os.environ["GCP_PRIVATE_KEY"].replace("\\n", "\n"),
                     "client_email": os.environ["GCP_CLIENT_EMAIL"],
                     "client_id": os.environ["GCP_CLIENT_ID"],
-                    # ✅ URLs corrigidas: SEM ESPAÇOS NO FINAL
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                     "token_uri": "https://oauth2.googleapis.com/token",
                     "auth_provider_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fluxo-loja%40fluxo-de-loja.iam.gserviceaccount.com",
@@ -35,8 +32,10 @@ class GooglePlanilha:
                     "universe_domain": "googleapis.com"
                 }
             else:
-                st.info("🔐 Modo Local: carregando de secrets.toml...")
                 credenciais = st.secrets["gcp_service_account"]
+
+            # ✅ AGORA sim, depois de definir `credenciais`
+            st.write("🔐 Chave privada (primeiros 100 caracteres):", credenciais["private_key"][:100])
 
             # Mostra qual conta está sendo usada
             st.write(f"📧 Conta de serviço: `{credenciais['client_email']}`")

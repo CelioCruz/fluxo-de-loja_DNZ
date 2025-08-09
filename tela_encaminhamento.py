@@ -191,8 +191,8 @@ def gerar_pdf_em_memoria():
             pdf.cell(40, 8, f"{label}:", 0, 0)
             pdf.set_font("Arial", '', 12)
             text = str(value) if value else ""
-            # Trata acentos
-            text = text.encode('latin1', 'replace').decode('latin1')
+            # Garante que não tenha caracteres problemáticos (opcional)
+            text = text.encode('latin1', 'replace').decode('latin1')  # Trata acentos
             pdf.cell(0, 8, f" {text}", ln=True)
             pdf.set_x(10)
 
@@ -207,8 +207,9 @@ def gerar_pdf_em_memoria():
         pdf.cell(0, 6, "Consultor", ln=True, align='C')
         pdf.cell(0, 6, st.session_state.enc_vendedor, ln=True, align='C')
 
-        # Gera o PDF diretamente no buffer
-        pdf_data = pdf.output()
+        # ✅ Gera o PDF diretamente no buffer
+        # FPDF permite: output() retorna bytes se não passar argumento
+        pdf_data = pdf.output(dest='S').encode('utf-8')  # Garante bytes
         pdf_buffer.write(pdf_data)
         pdf_buffer.seek(0)
 
@@ -216,7 +217,7 @@ def gerar_pdf_em_memoria():
 
     except Exception as e:
         st.error(f"❌ Erro ao gerar PDF: {str(e)}")
-        return None
+        return None  # Retorna None em vez de levantar, para não quebrar
 
 
 # === EXIBIÇÃO DO PDF EM TELA (SEM DOWNLOAD) ===

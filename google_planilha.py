@@ -34,20 +34,8 @@ class GooglePlanilha:
             else:
                 credenciais = st.secrets["gcp_service_account"]
 
-            # ✅ AGORA sim, depois de definir `credenciais`
-            st.write("🔐 Chave privada (primeiros 100 caracteres):", credenciais["private_key"][:100])
-
-            # Mostra qual conta está sendo usada
-            st.write(f"📧 Conta de serviço: `{credenciais['client_email']}`")
-            st.write(f"📦 Projeto: `{credenciais['project_id']}`")
-
             # ✅ Conecta com gspread
             client = gspread.service_account_from_dict(credenciais)
-
-            # ✅ Testa acesso básico (sem abrir planilha)
-            st.info("📡 Testando conexão com API do Google Sheets...")
-            planilhas = client.openall()
-            st.success(f"✅ Conectado! {len(planilhas)} planilhas acessíveis.")
 
             # Salva cliente no session_state
             st.session_state.gsheets_client = client

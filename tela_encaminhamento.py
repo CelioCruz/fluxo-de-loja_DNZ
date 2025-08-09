@@ -222,27 +222,31 @@ def gerar_pdf_em_memoria():
 
 # === EXIBIÇÃO DO PDF EM TELA (SEM DOWNLOAD) ===
 def exibir_pdf_no_navegador(pdf_buffer):
-    """Exibe o PDF diretamente no navegador para impressão ou screenshot"""
+    """Exibe o PDF diretamente no navegador usando HTML seguro"""
     try:
         pdf_buffer.seek(0)
-        pdf_b64 = base64.b64encode(pdf_buffer.getvalue()).decode("utf-8")
-        pdf_display = f'''
-        <div style="text-align: center; margin-bottom: 10px;">
-            <h4>Pronto para impressão ou screenshot</h4>
+        b64_pdf = base64.b64encode(pdf_buffer.read()).decode()
+
+        # Usa st.components.v1.html para exibir o PDF com controle total
+        pdf_display = f"""
+        <div style="width:100%; text-align:center; margin-bottom:10px;">
+            <h4>Encaminhamento - Pronto para impressão</h4>
         </div>
-        <iframe src="data:application/pdf;base64,{pdf_b64}" 
-                width="100%" 
-                height="600px" 
-                style="border: none; box-shadow: 0px 0px 10px rgba(0,0,0,0.2);">
-        </iframe>
+        <embed src="data:application/pdf;base64,{b64_pdf}" 
+               width="100%" 
+               height="600px" 
+               type="application/pdf"
+               style="border: 1px solid #ddd; border-radius: 8px;">
         <div style="text-align: center; margin: 20px 0;">
-            <button onclick="window.frames[0].print()" 
+            <button onclick="window.open('data:application/pdf;base64,{b64_pdf}')" 
                     style="background-color: #007BFF; color: white; border: none; padding: 12px 24px; 
                            border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold;">
-                🖨️ Imprimir
+                🖨️ Abrir em nova aba e imprimir
             </button>
         </div>
-        '''
+        """
+
         st.markdown(pdf_display, unsafe_allow_html=True)
+
     except Exception as e:
-        st.error(f"❌ Erro ao exibir PDF: {e}")
+        st.error(f"❌ Erro ao exibir PDF: {str(e)}")

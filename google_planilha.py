@@ -18,6 +18,7 @@ class GooglePlanilha:
         try:
             # 🔹 Modo Render: variáveis de ambiente
             if 'GCP_PROJECT_ID' in os.environ:
+                st.write("🔐 Chave privada (primeiros 100 caracteres):", credenciais["private_key"][:100])
                 st.info("🔐 Modo Render: carregando credenciais por variáveis de ambiente...")
                 credenciais = {
                     "type": "service_account",

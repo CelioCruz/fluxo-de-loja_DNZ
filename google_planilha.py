@@ -1,5 +1,5 @@
 import gspread
-from gspread.exceptions import AuthenticationError, APIError, SpreadsheetNotFound, WorksheetNotFound
+from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
 from typing import Dict, List
 import streamlit as st
 import os
@@ -16,6 +16,7 @@ class GooglePlanilha:
 
     def _criar_conexao(self):
         try:
+            # 🔹 Modo Render: variáveis de ambiente
             if 'GCP_PROJECT_ID' in os.environ:
                 st.info("🔐 Modo Render: carregando credenciais por variáveis de ambiente...")
                 credenciais = {
@@ -25,6 +26,7 @@ class GooglePlanilha:
                     "private_key": os.environ["GCP_PRIVATE_KEY"].replace("\\n", "\n"),
                     "client_email": os.environ["GCP_CLIENT_EMAIL"],
                     "client_id": os.environ["GCP_CLIENT_ID"],
+                    # ✅ URLs corrigidas: SEM ESPAÇOS NO FINAL
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                     "token_uri": "https://oauth2.googleapis.com/token",
                     "auth_provider_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fluxo-loja%40fluxo-de-loja.iam.gserviceaccount.com",
@@ -69,17 +71,14 @@ class GooglePlanilha:
 
             self._verificar_estrutura()
 
-        except AuthenticationError as e:
-            st.error(f"🔐 Erro de autenticação. Credenciais inválidas ou expiradas.\n\nDetalhes: {str(e)}")
-            st.stop()
-
         except APIError as e:
-            st.error(f"🌐 Erro da API do Google Sheets.\n\nResposta: {str(e)}")
+            # ✅ Captura erros de autenticação, token inválido, etc.
+            st.error(f"🔐 Erro de autenticação ou acesso ao Google Sheets.\n\nDetalhes: {str(e)}")
             st.stop()
 
         except Exception as e:
             st.error(f"❌ Falha inesperada ao conectar ao Google Sheets:\n\n`{str(e)}`")
-            st.exception(e)  # Mostra traceback no Streamlit (útil para debug)
+            st.exception(e)  # Mostra traceback no Streamlit
             st.stop()
 
     def _verificar_estrutura(self):

@@ -60,39 +60,48 @@ def tela_encaminhamento():
     st.session_state.enc_tipo = tipo_selecionado
 
     # Carrega vendedores
-    if 'gsheets' not in st.session_state:
-        st.session_state.gsheets = GooglePlanilha()
-    gsheets = st.session_state.gsheets
-    vendedores_data = gsheets.get_vendedores_por_loja()
-    vendedores = [v['VENDEDOR'] for v in vendedores_data] if vendedores_data else []
+    try:
+        if 'gsheets' not in st.session_state:
+            st.session_state.gsheets = GooglePlanilha()
+        gsheets = st.session_state.gsheets
+        vendedores_data = gsheets.get_vendedores_por_loja()
+        vendedores = [v['VENDEDOR'] for v in vendedores_data] if vendedores_data else []
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar vendedores: {str(e)}")
+        return
 
     if not vendedores:
         st.warning("⚠️ Nenhum vendedor encontrado.")
         return
 
     # Seleciona vendedor
+    if st.session_state.enc_vendedor in vendedores:
+        index_vendedor = vendedores.index(st.session_state.enc_vendedor)
+    else:
+        index_vendedor = 0
+
     st.session_state.enc_vendedor = st.selectbox(
         "Vendedor que encaminhou",
         options=vendedores,
-        index=vendedores.index(st.session_state.enc_vendedor)
-        if st.session_state.enc_vendedor in vendedores else 0,
+        index=index_vendedor,
         key="sel_vendedor_enc"
     )
 
     st.markdown("---")
 
-    # Botões: Gerar PDF e Voltar
+    # Botões: Visualizar e Voltar
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        if st.button("🖨️ IMPRIMIR", use_container_width=True):
-            try:
-                download_link = criar_link_download_pdf()
-                st.success("✅ PDF gerado com sucesso!")
-                st.markdown(download_link, unsafe_allow_html=True)
-                st.session_state.pdf_gerado = True
-            except Exception as e:
-                st.error(f"❌ Erro ao gerar PDF: {str(e)}")
+        if st.button("🖨️ VISUALIZAR", use_container_width=True):
+            with st.spinner("Gerando PDF..."):
+                pdf_buffer = gerar_pdf_em_memoria()
+                if pdf_buffer:
+                    st.success("✅ PDF gerado com sucesso!")
+                    exibir_pdf_no_navegador(pdf_buffer)
+                    st.session_state.pdf_gerado = True
+                else:
+                    st.error("❌ Falha ao gerar PDF.")
 
     with col2:
         if st.button("↩️ Voltar", use_container_width=True):
@@ -113,6 +122,39 @@ def tela_encaminhamento():
                     del st.session_state[key]
             st.session_state.etapa = 'loja'
             st.rerun()
+
+
+# === FUNÇÕES AUXILIARES ===
+def formatar_telefone(tel):
+    """Formata telefone para (XX) XXXXX-XXXX ou (XX) XXXX-XXXX"""
+    if not tel:
+        return ""
+    # Remove tudo que não for número
+    tel = ''.join(filter(str.isdigit, tel))
+    if len(tel) == 11:
+        return f"({tel[:2]}) {tel[2:7]}-{tel[7:]}"
+    elif len(tel) == 10:
+        return f"({tel[:2]}) {tel[2:6]}-{tel[6:]}"
+    return tel
+
+
+def formatar_data_nascimento(data):
+    """Formata data de nascimento para DD/MM/AAAA"""
+    if not data:
+        return ""
+    data = data.strip()
+    partes = data.split('/')
+    if len(partes) == 3:
+        try:
+            dia = partes[0].zfill(2)
+            mes = partes[1].zfill(2)
+            ano = partes[2]
+            if len(ano) == 2:
+                ano = "20" + ano if ano < "30" else "19" + ano
+            return f"{dia}/{mes}/{ano}"
+        except:
+            pass
+    return data
 
 
 # === GERAÇÃO DE PDF EM MEMÓRIA ===
@@ -140,7 +182,6 @@ def gerar_pdf_em_memoria():
         pdf.set_auto_page_break(auto=True, margin=15)
 
         # Tenta usar fonte com suporte a acentos
-        # O FPDF padrão não suporta UTF-8 direto, mas se os dados estiverem em string, funciona com Arial
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "ENCAMINHAMENTO", ln=True, align='C')
         pdf.ln(10)
@@ -150,8 +191,8 @@ def gerar_pdf_em_memoria():
             pdf.cell(40, 8, f"{label}:", 0, 0)
             pdf.set_font("Arial", '', 12)
             text = str(value) if value else ""
-            # Garante que não tenha caracteres problemáticos (opcional)
-            text = text.encode('latin1', 'replace').decode('latin1')  # Trata acentos
+            # Trata acentos
+            text = text.encode('latin1', 'replace').decode('latin1')
             pdf.cell(0, 8, f" {text}", ln=True)
             pdf.set_x(10)
 
@@ -166,14 +207,41 @@ def gerar_pdf_em_memoria():
         pdf.cell(0, 6, "Consultor", ln=True, align='C')
         pdf.cell(0, 6, st.session_state.enc_vendedor, ln=True, align='C')
 
-        # ✅ Gera o PDF diretamente no buffer
-        # FPDF permite: output() retorna bytes se não passar argumento
-        pdf_data = pdf.output()  # Retorna bytes diretamente
+        # Gera o PDF diretamente no buffer
+        pdf_data = pdf.output()
         pdf_buffer.write(pdf_data)
         pdf_buffer.seek(0)
 
         return pdf_buffer
 
     except Exception as e:
-        st.error(f"Erro ao gerar PDF: {str(e)}")
-        return None  # Retorna None em vez de levantar, para não quebrar
+        st.error(f"❌ Erro ao gerar PDF: {str(e)}")
+        return None
+
+
+# === EXIBIÇÃO DO PDF EM TELA (SEM DOWNLOAD) ===
+def exibir_pdf_no_navegador(pdf_buffer):
+    """Exibe o PDF diretamente no navegador para impressão ou screenshot"""
+    try:
+        pdf_buffer.seek(0)
+        pdf_b64 = base64.b64encode(pdf_buffer.getvalue()).decode("utf-8")
+        pdf_display = f'''
+        <div style="text-align: center; margin-bottom: 10px;">
+            <h4>Pronto para impressão ou screenshot</h4>
+        </div>
+        <iframe src="data:application/pdf;base64,{pdf_b64}" 
+                width="100%" 
+                height="600px" 
+                style="border: none; box-shadow: 0px 0px 10px rgba(0,0,0,0.2);">
+        </iframe>
+        <div style="text-align: center; margin: 20px 0;">
+            <button onclick="window.frames[0].print()" 
+                    style="background-color: #007BFF; color: white; border: none; padding: 12px 24px; 
+                           border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold;">
+                🖨️ Imprimir
+            </button>
+        </div>
+        '''
+        st.markdown(pdf_display, unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"❌ Erro ao exibir PDF: {e}")

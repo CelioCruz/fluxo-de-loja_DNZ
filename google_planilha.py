@@ -3,6 +3,8 @@ from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
 from typing import Dict, List
 import streamlit as st
 import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 class GooglePlanilha:
     def __init__(self):
@@ -95,33 +97,44 @@ class GooglePlanilha:
 
     def registrar_atendimento(self, dados: Dict) -> bool:
         try:
-            mapeamento = [
-                ('loja', 'LOJA'), ('vendedor', 'VENDEDOR'), ('cliente', 'CLIENTE'), ('data', 'DATA'),
-                ('atendimento', 'ATENDIMENTO'), ('receita', 'RECEITA'), ('venda', 'VENDA'), ('perda', 'PERDA'),
-                ('reserva', 'RESERVA'), ('pesquisa', 'PESQUISA'), ('consulta', 'CONSULTA'), ('hora', 'HORA')
-            ]
-            valores = [str(dados.get(campo, '')).strip() for campo, _ in mapeamento]
-            self.aba_relatorio.append_row(valores, value_input_option='USER_ENTERED')
-            return True
-        except Exception as e:
-            st.error(f"❌ Falha ao salvar: {str(e)}")
-            return False
+            # ✅ Garante que a hora seja sempre do Brasil (Brasília)
+            if 'hora' not in dados or not dados['hora']:
+                dados['hora'] = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M:%S")
 
-    def registrar_sem_vendedor(self, dados: Dict) -> bool:
-        try:
+            # Campos obrigatórios
+            if not dados.get('loja'):
+                st.error("❌ Loja não definida.")
+                return False
+            if not dados.get('vendedor'):
+                st.error("❌ Vendedor não selecionado.")
+                return False
+            if not dados.get('cliente'):
+                st.error("❌ Nome do cliente é obrigatório.")
+                return False
+
+            # Mapeamento de campos para colunas no Google Sheets
             mapeamento = [
-                ('loja', 'LOJA'), ('vendedor', 'VENDEDOR'), ('cliente', 'CLIENTE'), ('data', 'DATA'),
-                ('atendimento', 'ATENDIMENTO'), ('receita', 'RECEITA'), ('venda', 'VENDA'), ('perda', 'PERDA'),
-                ('reserva', 'RESERVA'), ('pesquisa', 'PESQUISA'), ('consulta', 'CONSULTA'), ('hora', 'HORA')
+                ('loja', 'LOJA'),
+                ('vendedor', 'VENDEDOR'),
+                ('cliente', 'CLIENTE'),
+                ('data', 'DATA'),
+                ('atendimento', 'ATENDIMENTO'),
+                ('receita', 'RECEITA'),
+                ('venda', 'VENDA'),
+                ('perda', 'PERDA'),
+                ('reserva', 'RESERVA'),
+                ('pesquisa', 'PESQUISA'),
+                ('consulta', 'CONSULTA'),
+                ('hora', 'HORA')
             ]
-            campos_obrigatorios = ['loja', 'data']
-            for campo in campos_obrigatorios:
-                if not dados.get(campo):
-                    st.error(f"⚠️ Campo obrigatório faltando: {campo}")
-                    return False
+
+            # Gera os valores na ordem correta
             valores = [str(dados.get(campo, '')).strip() for campo, _ in mapeamento]
+
+            # Salva na planilha
             self.aba_relatorio.append_row(valores, value_input_option='USER_ENTERED')
             return True
+
         except Exception as e:
-            st.error(f"❌ Falha ao salvar (sem vendedor): {str(e)}")
+            st.error(f"❌ Falha ao salvar no Google Sheets: {str(e)}")
             return False

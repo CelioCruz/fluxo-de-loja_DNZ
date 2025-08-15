@@ -2,6 +2,7 @@ import streamlit as st
 import base64
 import json
 import bcrypt
+from datetime import datetime
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fluxo de Loja", layout="centered")
@@ -27,11 +28,17 @@ set_fundo_cor_solido()
 
 # --- ESTADO INICIAL ---
 if 'etapa' not in st.session_state:
-    st.session_state.etapa = 'login'  # Agora começa no login
+    st.session_state.etapa = 'login'
 if 'loja' not in st.session_state:
     st.session_state.loja = ''
 if 'subtela' not in st.session_state:
     st.session_state.subtela = ''
+if 'nome_atendente' not in st.session_state:
+    st.session_state.nome_atendente = ''
+if 'horario_entrada' not in st.session_state:
+    st.session_state.horario_entrada = None
+if 'horario_saida' not in st.session_state:
+    st.session_state.horario_saida = None
 
 
 # --- TELA DE LOGIN ---
@@ -61,7 +68,8 @@ def tela_login():
             senha_hash = usuario["senha_hash"].encode()
             if bcrypt.checkpw(senha.encode(), senha_hash):
                 st.session_state.nome_atendente = nome
-                st.session_state.etapa = 'loja'  # Vai direto para seleção de loja
+                st.session_state.etapa = 'loja'
+                st.session_state.horario_entrada = datetime.now()  # ✅ Registra o horário de entrada
                 st.success(f"✅ Bem-vindo, {nome}!")
                 st.balloons()
                 st.rerun()
@@ -72,10 +80,14 @@ def tela_login():
 
     # Botão: Fechar Sistema
     if st.button("❌ FECHAR SISTEMA", use_container_width=True, type="secondary"):
-        # Mostra mensagem e instrui o usuário a fechar a aba
-        st.markdown("### 🖐️ Sistema encerrado")
-        st.info("Você pode fechar esta aba ou janela do navegador.")
-        st.stop()  # Para a execução do Streamlit
+        st.session_state.horario_saida = datetime.now()  # ✅ Horário de saída
+        st.markdown("### 🖐️ Sessão encerrada")
+        entrada = st.session_state.horario_entrada.strftime("%d/%m/%Y às %H:%M:%S") if st.session_state.horario_entrada else "Não registrado"
+        saida = st.session_state.horario_saida.strftime("%d/%m/%Y às %H:%M:%S")
+        st.info(f"**Entrada:** {entrada}\n\n**Saída:** {saida}")
+        st.success("Obrigado por usar o sistema! Você pode fechar a aba.")
+        st.stop()
+
 
 # --- CARREGAMENTO DAS TELAS PRINCIPAIS ---
 try:
@@ -83,6 +95,7 @@ try:
 except Exception as e:
     st.error("Falha ao carregar selecionar_loja.py")
     st.code(str(e))
+
 try:
     from tela_atendimento import tela_atendimento_principal
 except Exception as e:
@@ -96,10 +109,12 @@ for nome in [
     'tela_reservas', 'tela_sem_receita', 'tela_encaminhamento',
 ]:
     try:
-        exec(f"from {nome} import {nome.replace('-', '_')}")
-        SUBTELAS[nome.replace('tela_', '').replace('retorno_', '')] = eval(nome.replace('-', '_'))
+        module_name = nome.replace('-', '_')
+        exec(f"from {nome} import {module_name}")
+        SUBTELAS[nome.replace('tela_', '').replace('retorno_', '')] = eval(module_name)
     except Exception as e:
-        def erro(): st.error(f"❌ {nome}")
+        def erro(): 
+            st.error(f"❌ Falha ao carregar {nome}.py")
         SUBTELAS[nome.replace('tela_', '')] = erro
 
 # === NAVEGAÇÃO ENTRE TELAS ===
@@ -115,12 +130,24 @@ elif st.session_state.etapa == 'subtela':
     else:
         st.error("Tela não encontrada")
         if st.button("Voltar", key="btn_voltar_geral"):
-            st.session_state.etapa = 'loguin'
+            st.session_state.etapa = 'login'  # ✅ Corrigido: era 'loguin'
             st.rerun()
 else:
     st.error("Etapa inválida.")
     st.session_state.etapa = 'login'
-    st.rerun()   
+    st.rerun()
+
+# --- MOSTRAR HORÁRIO DE ENTRADA NO SIDEBAR OU TOPO ---
+if st.session_state.horario_entrada:
+    horario_formatado = st.session_state.horario_entrada.strftime("%H:%M:%S")
+    st.sidebar.markdown(f"**🕒 Entrada:** {horario_formatado}")
+    if st.session_state.nome_atendente:
+        st.sidebar.markdown(f"**👤 Atendente:** {st.session_state.nome_atendente}")
 
 # Rodapé
-st.markdown("<br><hr><center><small>💼 Projeto <strong>Leonardo Pesil, desenvolvido por Cruz.devsoft</strong> | © 2025</small></center>", unsafe_allow_html=True)
+st.markdown(
+    "<br><hr><center>"
+    "<small>💼 Projeto <strong>Leonardo Pesil</strong>, desenvolvido por <strong>Cruz.devsoft</strong> | © 2025</small>"
+    "</center>",
+    unsafe_allow_html=True
+)

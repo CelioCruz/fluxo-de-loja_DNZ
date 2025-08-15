@@ -30,21 +30,26 @@ def tela_consulta():
             if not cliente.strip() or not vendedor:
                 st.error("⚠️ Preencha todos os campos!")
             else:
-                # Salva dados da consulta
+                # ✅ Dados completos para registrar_atendimento
                 dados = {
                     'loja': st.session_state.loja,
-                    'atendente': st.session_state.nome_atendente,
+                    'vendedor': vendedor,           # ✅ Agora o vendedor é obrigatório
                     'cliente': cliente,
                     'data': datetime.now().strftime("%d/%m/%Y"),
                     'atendimento': '1',
-                    'receita': '', 'venda': '', 'perda': '', 'reserva': '',
-                    'pesquisa': '',  'consulta': '1',
-                    'hora': datetime.now().strftime("%H:%M")
+                    'receita': '', 
+                    'venda': '', 
+                    'perda': '', 
+                    'reserva': '',
+                    'pesquisa': '',  
+                    'consulta': '1',
+                    # 'hora' será preenchida automaticamente em registrar_atendimento
                 }
 
-                if gsheets.registrar_sem_vendedor(dados):
+                # ✅ Usa registrar_atendimento (não mais registrar_sem_vendedor)
+                if gsheets.registrar_atendimento(dados):
                     st.balloons()
-                    st.success("✅ Consulta registrada!")
+                    st.success("✅ Consulta registrada com sucesso!")
 
                     # ✅ Passa os dados para a tela de encaminhamento
                     st.session_state.enc_cliente = cliente
@@ -55,7 +60,7 @@ def tela_consulta():
                     st.session_state.subtela = 'encaminhamento' 
                     st.rerun()
                 else:
-                    st.error("❌ Falha ao salvar no Google Sheets.")
+                    st.error("❌ Falha ao salvar no Google Sheets. Tente novamente.")
 
     with col2:
         if st.button("↩️ Voltar", key="btn_voltar_consulta"):

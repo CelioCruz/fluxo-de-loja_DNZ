@@ -1,5 +1,5 @@
 # Ambiente virtual
-venv/
+jotivenv/
 env/
 
 # Cache Python
@@ -16,5 +16,5 @@ Thumbs.db
 /.streamlit/
 
 # Secrets
-.streamlit/secrets.toml
+.streamlit/
 secrets.toml

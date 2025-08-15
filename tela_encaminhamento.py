@@ -93,7 +93,7 @@ def tela_encaminhamento():
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        if st.button("🖨️ VISUALIZAR", use_container_width=True):
+        if st.button("🖨️ GERAR PDF", use_container_width=True):
             with st.spinner("Gerando PDF..."):
                 pdf_buffer = gerar_pdf_em_memoria()
                 if pdf_buffer:
@@ -158,10 +158,11 @@ def formatar_data_nascimento(data):
 
 
 # === GERAÇÃO DE PDF EM MEMÓRIA ===
+# === GERAÇÃO DE PDF EM MEMÓRIA ===
 def gerar_pdf_em_memoria():
     """Gera o PDF com validação e suporte a acentos"""
     try:
-        # === Validação dos dados ===
+        # ✅ Validação dos dados
         if not st.session_state.enc_cliente:
             raise ValueError("Nome do paciente é obrigatório")
         if not st.session_state.enc_telefone:
@@ -173,80 +174,98 @@ def gerar_pdf_em_memoria():
         if st.session_state.enc_tipo not in ["PARTICULAR", "PLANO"]:
             raise ValueError("Tipo de atendimento inválido")
 
-        # Cria buffer em memória
+        # ✅ Cria buffer em memória
         pdf_buffer = io.BytesIO()
 
-        # Configura o FPDF
-        pdf = FPDF(format='A4', unit='mm')
+        # ✅ Configura o FPDF
+        pdf = FPDF(format='A4', unit='mm', orientation='P')
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
 
-        # Tenta usar fonte com suporte a acentos
+        # ✅ Fonte padrão
         pdf.set_font("Arial", 'B', 16)
+
+        # ✅ Título centralizado
         pdf.cell(0, 10, "ENCAMINHAMENTO", ln=True, align='C')
         pdf.ln(10)
 
+        # ✅ Função para adicionar campo
         def add_item(label, value):
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(40, 8, f"{label}:", 0, 0)
             pdf.set_font("Arial", '', 12)
             text = str(value) if value else ""
-            # Garante que não tenha caracteres problemáticos (opcional)
-            text = text.encode('latin1', 'replace').decode('latin1')  # Trata acentos
+            # Trata acentos
+            try:
+                text = text.encode('latin1', 'replace').decode('latin1')
+            except:
+                text = "Erro no texto"
             pdf.cell(0, 8, f" {text}", ln=True)
             pdf.set_x(10)
 
-        # Dados do paciente
+        # ✅ Dados do paciente
         add_item("Paciente", st.session_state.enc_cliente)
         add_item("Telefone", formatar_telefone(st.session_state.enc_telefone))
         add_item("Nascimento", formatar_data_nascimento(st.session_state.enc_nascimento))
         add_item("Atendimento", st.session_state.enc_tipo)
-
-        # Assinatura
+        
+        # ✅ Assinatura
         pdf.set_font("Arial", '', 12)
         pdf.cell(0, 6, "Consultor", ln=True, align='C')
         pdf.cell(0, 6, st.session_state.enc_vendedor, ln=True, align='C')
 
-        # ✅ Gera o PDF diretamente no buffer
-        # FPDF permite: output() retorna bytes se não passar argumento
-        pdf_data = pdf.output(dest='S').encode('utf-8')  # Garante bytes
-        pdf_buffer.write(pdf_data)
+        # --- MENSAGEM FINAL ---
+        pdf.ln(15)
+        pdf.set_font("Arial", '', 11)
+        pdf.set_text_color(50, 50, 50)
+
+        nome_cliente = st.session_state.enc_cliente.strip()
+        if not nome_cliente:
+            nome_cliente = "Cliente"
+
+        tratamento = "Sra." if nome_cliente.split()[-1].endswith('a') and len(nome_cliente.split()[-1]) > 1 else "Sr."
+
+        data_hoje = datetime.now().strftime("%d/%m/%Y")
+        mensagem_final = f"Hoje ({data_hoje}), encaminhamento do para exame oftalmológico."
+        pdf.cell(0, 8, mensagem_final, ln=True, align='L')
+
+        # ✅ Gera o PDF como string e escreve no buffer
+        pdf_output = pdf.output(dest='S')  # Retorna string
+        pdf_bytes = pdf_output.encode('latin1')  # Codifica corretamente
+        pdf_buffer.write(pdf_bytes)
         pdf_buffer.seek(0)
 
         return pdf_buffer
 
     except Exception as e:
         st.error(f"❌ Erro ao gerar PDF: {str(e)}")
-        return None  # Retorna None em vez de levantar, para não quebrar
-
+        return None
 
 # === EXIBIÇÃO DO PDF EM TELA (SEM DOWNLOAD) ===
 def exibir_pdf_no_navegador(pdf_buffer):
-    """Exibe o PDF diretamente no navegador usando HTML seguro"""
+    """Exibe o PDF com botão de download nomeado pelo cliente"""
     try:
+        # Gera o nome do arquivo com o nome do cliente
+        nome_cliente = st.session_state.enc_cliente.strip()
+        if not nome_cliente:
+            nome_cliente = "encaminhamento"  # nome padrão
+
+        # Remove caracteres inválidos para nomes de arquivos
+        nome_arquivo = "".join(c for c in nome_cliente.upper() if c.isalnum() or c in " _-").strip()
+        nome_arquivo += ".pdf"
+
         pdf_buffer.seek(0)
-        b64_pdf = base64.b64encode(pdf_buffer.read()).decode()
 
-        # Usa st.components.v1.html para exibir o PDF com controle total
-        pdf_display = f"""
-        <div style="width:100%; text-align:center; margin-bottom:10px;">
-            <h4>Encaminhamento - Pronto para impressão</h4>
-        </div>
-        <embed src="data:application/pdf;base64,{b64_pdf}" 
-               width="100%" 
-               height="600px" 
-               type="application/pdf"
-               style="border: 1px solid #ddd; border-radius: 8px;">
-        <div style="text-align: center; margin: 20px 0;">
-            <button onclick="window.open('data:application/pdf;base64,{b64_pdf}')" 
-                    style="background-color: #007BFF; color: white; border: none; padding: 12px 24px; 
-                           border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold;">
-                🖨️ Abrir em nova aba e imprimir
-            </button>
-        </div>
-        """
+        # ✅ Botão com nome personalizado
+        st.download_button(
+            label="📥 Baixar PDF",
+            data=pdf_buffer,
+            file_name=nome_arquivo,  # ← Nome do cliente aqui!
+            mime="application/pdf",
+            key="download_pdf_unico"  # chave única para evitar cache
+        )
 
-        st.markdown(pdf_display, unsafe_allow_html=True)
+        st.success(f"✅ PDF gerado com sucesso! Pronto para baixar como: **{nome_arquivo}**")
 
     except Exception as e:
         st.error(f"❌ Erro ao exibir PDF: {str(e)}")

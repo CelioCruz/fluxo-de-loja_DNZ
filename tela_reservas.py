@@ -82,7 +82,7 @@ def tela_reservas():
             try:
                 # Ajuste aqui: use o método correto da sua classe GooglePlanilha
                 # Exemplos comuns: get_all_records(), ler_planilha(), get_data()
-                dados = gsheets.get_all_records()  # ← MUDAR SE NECESSÁRIO
+                dados = gsheets.ler_planilha()  # ← MUDAR SE NECESSÁRIO
             except Exception as e:
                 st.error(f"❌ Falha ao acessar a planilha: {e}")
                 return
@@ -159,7 +159,7 @@ def tela_reservas():
                 del st.session_state.tipo_reserva
                 del st.session_state.cliente_reserva
                 del st.session_state.vendedor_reserva
-                st.session_state.etapa = 'atendimento'
+                st.session_state.etapa = 'loja'
                 st.rerun()
             else:
                 st.error("❌ Falha ao salvar no Google Sheets.")
@@ -169,5 +169,5 @@ def tela_reservas():
         for key in ['tipo_reserva', 'cliente_reserva', 'vendedor_reserva']:
             if key in st.session_state:
                 del st.session_state[key]
-        st.session_state.etapa = 'atendimento'
+        st.session_state.etapa = 'loja'
         st.rerun()

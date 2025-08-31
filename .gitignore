@@ -1,5 +1,5 @@
 # Ambiente virtual
-jotivenv/
+cruz.dev_venv/
 env/
 
 # Cache Python
@@ -12,9 +12,9 @@ Thumbs.db
 *.log
 *.tmp
 
-# Streamlit
-/.streamlit/
+# Streamlit (ignorar apenas o arquivo secreto, não a pasta inteira)
+.secrets.toml
 
-# Secrets
-.streamlit/
+# Secrets (não subir arquivos sensíveis)
+usuariios.json
 secrets.toml

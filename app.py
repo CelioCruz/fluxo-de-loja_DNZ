@@ -1,8 +1,11 @@
+# app.py
+
 import streamlit as st
 import base64
 import json
 import bcrypt
 from datetime import datetime
+from zoneinfo import ZoneInfo  # Para fuso horário
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fluxo de Loja", layout="centered")
@@ -41,6 +44,19 @@ if 'horario_saida' not in st.session_state:
     st.session_state.horario_saida = None
 
 
+# 🔹 Função global: atualiza reservas expiradas
+def atualizar_reservas():
+    """Executa limpeza de reservas antigas. Deve ser chamada após ter gsheets."""
+    try:
+        if 'gsheets' in st.session_state:
+            # Use minutos=1 para testes, depois mude para 72*60
+            count = st.session_state.gsheets.limpar_reservas_antigas(minutos=72*60) # expira após 72 horas
+            if count > 0:
+                st.toast(f"✅ {count} reserva(s) expirada(s) removida(s).", icon="🧹")
+    except Exception as e:
+        st.error(f"❌ Erro ao limpar reservas: {str(e)}")
+
+
 # --- TELA DE LOGIN ---
 def tela_login():
     st.markdown("<h1 style='text-align: center; color: #1f77b4;'>🔐 ACESSO AO SISTEMA</h1>", unsafe_allow_html=True)
@@ -69,7 +85,7 @@ def tela_login():
             if bcrypt.checkpw(senha.encode(), senha_hash):
                 st.session_state.nome_atendente = nome
                 st.session_state.etapa = 'loja'
-                st.session_state.horario_entrada = datetime.now()  # ✅ Registra o horário de entrada
+                st.session_state.horario_entrada = datetime.now()
                 st.success(f"✅ Bem-vindo, {nome}!")
                 st.balloons()
                 st.rerun()
@@ -80,7 +96,7 @@ def tela_login():
 
     # Botão: Fechar Sistema
     if st.button("❌ FECHAR SISTEMA", use_container_width=True, type="secondary"):
-        st.session_state.horario_saida = datetime.now()  # ✅ Horário de saída
+        st.session_state.horario_saida = datetime.now()
         st.markdown("### 🖐️ Sessão encerrada")
         entrada = st.session_state.horario_entrada.strftime("%d/%m/%Y às %H:%M:%S") if st.session_state.horario_entrada else "Não registrado"
         saida = st.session_state.horario_saida.strftime("%d/%m/%Y às %H:%M:%S")
@@ -106,7 +122,7 @@ except Exception as e:
 SUBTELAS = {}
 for nome in [
     'tela_venda_receita', 'tela_pesquisa', 'tela_consulta',
-    'tela_reservas', 'tela_sem_receita', 'tela_encaminhamento',
+    'tela_reservas', 'tela_sem_receita', 'tela_encaminhamento', 'tela_lente',
 ]:
     try:
         module_name = nome.replace('-', '_')
@@ -117,25 +133,68 @@ for nome in [
             st.error(f"❌ Falha ao carregar {nome}.py")
         SUBTELAS[nome.replace('tela_', '')] = erro
 
+
 # === NAVEGAÇÃO ENTRE TELAS ===
 if st.session_state.etapa == 'login':
     tela_login()
+
 elif st.session_state.etapa == 'loja':
+    # ✅ Conecta com Google Sheets
+    if 'gsheets' not in st.session_state:
+        try:
+            from google_planilha import GooglePlanilha
+            st.session_state.gsheets = GooglePlanilha()
+        except Exception as e:
+            st.error("❌ Falha ao conectar ao Google Sheets")
+            st.exception(e)
+            st.stop()
+
+    # ✅ Atualiza reservas ANTES de carregar a tela
+    atualizar_reservas()
     tela_selecao_loja()
+
 elif st.session_state.etapa == 'atendimento':
+    # ✅ Garante que gsheets está carregado
+    if 'gsheets' not in st.session_state:
+        try:
+            from google_planilha import GooglePlanilha
+            st.session_state.gsheets = GooglePlanilha()
+        except Exception as e:
+            st.error("❌ Falha ao conectar ao Google Sheets")
+            st.exception(e)
+            st.stop()
+
+    # ✅ Atualiza reservas
+    atualizar_reservas()
     tela_atendimento_principal()
+
 elif st.session_state.etapa == 'subtela':
+    # ✅ Garante que gsheets está carregado
+    if 'gsheets' not in st.session_state:
+        try:
+            from google_planilha import GooglePlanilha
+            st.session_state.gsheets = GooglePlanilha()
+        except Exception as e:
+            st.error("❌ Falha ao conectar ao Google Sheets")
+            st.exception(e)
+            st.stop()
+
+    # ✅ Atualiza reservas
+    atualizar_reservas()
+
     if st.session_state.subtela in SUBTELAS:
         SUBTELAS[st.session_state.subtela]()
     else:
         st.error("Tela não encontrada")
         if st.button("Voltar", key="btn_voltar_geral"):
-            st.session_state.etapa = 'login'  # ✅ Corrigido: era 'loguin'
+            st.session_state.etapa = 'login'
             st.rerun()
+
 else:
     st.error("Etapa inválida.")
     st.session_state.etapa = 'login'
     st.rerun()
+
 
 # --- MOSTRAR HORÁRIO DE ENTRADA NO SIDEBAR OU TOPO ---
 if st.session_state.horario_entrada:

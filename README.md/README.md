@@ -11,6 +11,8 @@ Ideal para controle de atendimento e integração com planilhas (Google Sheets).
 - ✅ Visualização simples de dados
 - ✅ Integração com Google Sheets (via `google_planilha.py`)
 - ✅ Interface amigável com Streamlit
+- ✅ Sistema de Estoque integrado com dependencia de baixa em .exe
+- ✅ Relatorios a parte com .exe 
 
 ---
 
@@ -23,4 +25,5 @@ Network URL: http://10.0.0.163:8501
 
 ```bash
 git clone https://github.com/CelioCruz/fluxo-de-loja_Novo.git
-cd fluxo-de-loja_Novo
+cd fluxo-de-loja_DNZ
+site https://fluxo-de-loja-dnz.onrender.com/

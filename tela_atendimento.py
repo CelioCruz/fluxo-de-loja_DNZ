@@ -11,7 +11,8 @@ def tela_atendimento_principal():
         ("📌 Reservas Acumuladas", "reservas"),
         ("🔄 Retorno sem Reserva", "sem_receita"),
         ("🔍 Atendimento sem Receita", "pesquisa"),
-        ("📅 Exame de Vista", "consulta")
+        ("📅 Exame de Vista", "consulta"),
+        ("📦 Reserva Lentes Prontas","lente")
     ]
 
     # Dividimos em pares: cada linha terá 2 botões

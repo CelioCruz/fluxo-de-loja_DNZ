@@ -77,7 +77,7 @@ def tela_sem_receita():
                 'atendimento': '1',
                 'receita': '',
                 'venda': '1',
-                'perda': '',
+                'perda': '-1',
                 'reserva': '',
                 'pesquisa': '',
                 'consulta': '',

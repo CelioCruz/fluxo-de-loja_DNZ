@@ -122,7 +122,7 @@ except Exception as e:
 SUBTELAS = {}
 for nome in [
     'tela_venda_receita', 'tela_pesquisa', 'tela_consulta',
-    'tela_reservas', 'tela_sem_receita', 'tela_encaminhamento', 'tela_lente',
+    'tela_reservas', 'tela_sem_receita', 'tela_encaminhamento', 
 ]:
     try:
         module_name = nome.replace('-', '_')

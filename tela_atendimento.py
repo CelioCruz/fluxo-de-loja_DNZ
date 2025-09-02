@@ -6,12 +6,14 @@ def tela_atendimento_principal():
     st.info(f"**Usuário:** {st.session_state.nome_atendente}")
     st.markdown("-") 
     # === BOTÕES PERSONALIZADOS COM CSS ===
+    # === BOTÕES PERSONALIZADOS COM CSS ===
     botoes = [
         ("💊 Atendimento com Receita", "venda_receita"),
         ("📌 Reservas Acumuladas", "reservas"),
         ("🔄 Retorno sem Reserva", "sem_receita"),
         ("🔍 Atendimento sem Receita", "pesquisa"),
-        ("📅 Exame de Vista", "consulta")
+        ("📅 Exame de Vista", "consulta"),
+        ("📦 Reserva Lentes Prontas","lente")
     ]
 
     # Dividimos em pares: cada linha terá 2 botões

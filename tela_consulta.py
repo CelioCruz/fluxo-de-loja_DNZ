@@ -57,7 +57,7 @@ def tela_consulta():
 
                     # Vai para tela_encaminhamento
                     st.session_state.etapa = 'subtela'
-                    st.session_state.subtela = 'encaminhamento' 
+                    st.session_state.subtela = 'exame_vista' 
                     st.rerun()
                 else:
                     st.error("❌ Falha ao salvar no Google Sheets. Tente novamente.")

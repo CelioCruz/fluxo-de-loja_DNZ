@@ -6,20 +6,12 @@ from datetime import datetime
 from google_planilha import GooglePlanilha
 
 
-def tela_encaminhamento():
+def tela_exame_vista():
+    """Tela de encaminhamento para exame oftalmológico."""
     st.subheader("🩺 ENCAMINHAMENTO")
 
     # Inicializa campos no session_state
-    if 'enc_cliente' not in st.session_state:
-        st.session_state.enc_cliente = ""
-    if 'enc_telefone' not in st.session_state:
-        st.session_state.enc_telefone = ""
-    if 'enc_nascimento' not in st.session_state:
-        st.session_state.enc_nascimento = ""
-    if 'enc_vendedor' not in st.session_state:
-        st.session_state.enc_vendedor = ""
-    if 'enc_tipo' not in st.session_state:
-        st.session_state.enc_tipo = "PARTICULAR"  # padrão
+    _inicializar_session_state()
 
     # Campo: Nome do Paciente
     cliente_input = st.text_input(
@@ -27,8 +19,7 @@ def tela_encaminhamento():
         value=st.session_state.enc_cliente,
         key="enc_cliente_input"
     ).strip().upper()
-    if cliente_input != st.session_state.enc_cliente:
-        st.session_state.enc_cliente = cliente_input
+    st.session_state.enc_cliente = cliente_input
 
     # Campo: Telefone
     telefone_input = st.text_input(
@@ -37,8 +28,7 @@ def tela_encaminhamento():
         placeholder="(00) 00000-0000",
         key="enc_telefone_input"
     )
-    if st.session_state.enc_telefone != telefone_input:
-        st.session_state.enc_telefone = telefone_input
+    st.session_state.enc_telefone = telefone_input
 
     # Campo: Data de Nascimento
     nascimento_input = st.text_input(
@@ -47,8 +37,7 @@ def tela_encaminhamento():
         placeholder="DD/MM/AAAA",
         key="enc_nascimento_input"
     )
-    if st.session_state.enc_nascimento != nascimento_input:
-        st.session_state.enc_nascimento = nascimento_input
+    st.session_state.enc_nascimento = nascimento_input
 
     # Campo: Tipo de Atendimento (PARTICULAR / PLANO)
     tipo_selecionado = st.radio(
@@ -60,18 +49,8 @@ def tela_encaminhamento():
     st.session_state.enc_tipo = tipo_selecionado
 
     # Carrega vendedores
-    try:
-        if 'gsheets' not in st.session_state:
-            st.session_state.gsheets = GooglePlanilha()
-        gsheets = st.session_state.gsheets
-        vendedores_data = gsheets.get_vendedores_por_loja()
-        vendedores = [v['VENDEDOR'] for v in vendedores_data] if vendedores_data else []
-    except Exception as e:
-        st.error(f"❌ Erro ao carregar vendedores: {str(e)}")
-        return
-
+    vendedores = _carregar_vendedores()
     if not vendedores:
-        st.warning("⚠️ Nenhum vendedor encontrado.")
         return
 
     # Seleciona vendedor
@@ -89,7 +68,7 @@ def tela_encaminhamento():
 
     st.markdown("---")
 
-    # Botões: Visualizar e Voltar
+    # Botões: Gerar PDF e Voltar
     col1, col2 = st.columns([1, 1])
 
     with col1:
@@ -113,51 +92,51 @@ def tela_encaminhamento():
     if st.session_state.get('pdf_gerado', False):
         st.markdown("---")
         if st.button("✅ Concluído – Voltar à loja", use_container_width=True):
-            chaves_limpar = [
-                'enc_cliente', 'enc_telefone', 'enc_nascimento',
-                'enc_vendedor', 'enc_tipo', 'pdf_gerado'
-            ]
-            for key in chaves_limpar:
-                if key in st.session_state:
-                    del st.session_state[key]
+            _limpar_dados_encaminhamento()
             st.session_state.etapa = 'loja'
             st.rerun()
 
 
 # === FUNÇÕES AUXILIARES ===
-def formatar_telefone(tel):
-    """Formata telefone para (XX) XXXXX-XXXX ou (XX) XXXX-XXXX"""
-    if not tel:
-        return ""
-    # Remove tudo que não for número
-    tel = ''.join(filter(str.isdigit, tel))
-    if len(tel) == 11:
-        return f"({tel[:2]}) {tel[2:7]}-{tel[7:]}"
-    elif len(tel) == 10:
-        return f"({tel[:2]}) {tel[2:6]}-{tel[6:]}"
-    return tel
+def _inicializar_session_state():
+    """Inicializa variáveis no session_state."""
+    defaults = {
+        'enc_cliente': "",
+        'enc_telefone': "",
+        'enc_nascimento': "",
+        'enc_vendedor': "",
+        'enc_tipo': "PARTICULAR",
+        'pdf_gerado': False
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 
-def formatar_data_nascimento(data):
-    """Formata data de nascimento para DD/MM/AAAA"""
-    if not data:
-        return ""
-    data = data.strip()
-    partes = data.split('/')
-    if len(partes) == 3:
-        try:
-            dia = partes[0].zfill(2)
-            mes = partes[1].zfill(2)
-            ano = partes[2]
-            if len(ano) == 2:
-                ano = "20" + ano if ano < "30" else "19" + ano
-            return f"{dia}/{mes}/{ano}"
-        except:
-            pass
-    return data
+def _carregar_vendedores():
+    """Carrega lista de vendedores da loja atual."""
+    try:
+        if 'gsheets' not in st.session_state:
+            st.session_state.gsheets = GooglePlanilha()
+        gsheets = st.session_state.gsheets
+        vendedores_data = gsheets.get_vendedores_por_loja()
+        return [v['VENDEDOR'] for v in vendedores_data] if vendedores_data else []
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar vendedores: {str(e)}")
+        return []
 
 
-# === GERAÇÃO DE PDF EM MEMÓRIA ===
+def _limpar_dados_encaminhamento():
+    """Limpa os dados de encaminhamento do session_state."""
+    chaves = [
+        'enc_cliente', 'enc_telefone', 'enc_nascimento',
+        'enc_vendedor', 'enc_tipo', 'pdf_gerado'
+    ]
+    for key in chaves:
+        if key in st.session_state:
+            del st.session_state[key]
+
+
 # === GERAÇÃO DE PDF EM MEMÓRIA ===
 def gerar_pdf_em_memoria():
     """Gera o PDF com validação e suporte a acentos"""
@@ -175,7 +154,7 @@ def gerar_pdf_em_memoria():
             raise ValueError("Tipo de atendimento inválido")
 
         # ✅ Cria buffer em memória
-        pdf_buffer = io.BytesIO()
+        pdf_buffer = io.BytesIO()  # ← Use BytesIO, não BytesIO
 
         # ✅ Configura o FPDF
         pdf = FPDF(format='A4', unit='mm', orientation='P')
@@ -195,11 +174,12 @@ def gerar_pdf_em_memoria():
             pdf.cell(40, 8, f"{label}:", 0, 0)
             pdf.set_font("Arial", '', 12)
             text = str(value) if value else ""
-            # Trata acentos
+            # Trata acentos (usando latin1)
             try:
                 text = text.encode('latin1', 'replace').decode('latin1')
-            except:
-                text = "Erro no texto"
+            except AttributeError:
+                # Se for bytearray, já é binário
+                pass
             pdf.cell(0, 8, f" {text}", ln=True)
             pdf.set_x(10)
 
@@ -208,7 +188,7 @@ def gerar_pdf_em_memoria():
         add_item("Telefone", formatar_telefone(st.session_state.enc_telefone))
         add_item("Nascimento", formatar_data_nascimento(st.session_state.enc_nascimento))
         add_item("Atendimento", st.session_state.enc_tipo)
-        
+
         # ✅ Assinatura
         pdf.set_font("Arial", '', 12)
         pdf.cell(0, 6, "Consultor", ln=True, align='C')
@@ -226,46 +206,86 @@ def gerar_pdf_em_memoria():
         tratamento = "Sra." if nome_cliente.split()[-1].endswith('a') and len(nome_cliente.split()[-1]) > 1 else "Sr."
 
         data_hoje = datetime.now().strftime("%d/%m/%Y")
-        mensagem_final = f"Hoje ({data_hoje}), encaminhamento do para exame oftalmológico."
+        mensagem_final = f"Hoje ({data_hoje}), encaminhamento para exame oftalmológico."
         pdf.cell(0, 8, mensagem_final, ln=True, align='L')
 
-        # ✅ Gera o PDF como string e escreve no buffer
-        pdf_output = pdf.output(dest='S')  # Retorna string
-        pdf_bytes = pdf_output.encode('latin1')  # Codifica corretamente
-        pdf_buffer.write(pdf_bytes)
-        pdf_buffer.seek(0)
+        # ✅ Gera o PDF como bytes e escreve diretamente no buffer
+        pdf_output = pdf.output(dest='S')  # → bytearray ou bytes
+        pdf_buffer.write(pdf_output)  # ← Escreve diretamente
 
+        pdf_buffer.seek(0)
         return pdf_buffer
 
     except Exception as e:
         st.error(f"❌ Erro ao gerar PDF: {str(e)}")
         return None
 
-# === EXIBIÇÃO DO PDF EM TELA (SEM DOWNLOAD) ===
+
+def formatar_telefone(tel):
+    """Formata telefone para (XX) XXXXX-XXXX ou (XX) XXXX-XXXX"""
+    if not tel:
+        return ""
+    tel = ''.join(filter(str.isdigit, tel))
+    if len(tel) == 11:
+        return f"({tel[:2]}) {tel[2:7]}-{tel[7:]}"
+    elif len(tel) == 10:
+        return f"({tel[:2]}) {tel[2:6]}-{tel[6:]}"
+    return tel
+
+
+def formatar_data_nascimento(data):
+    """Formata data de nascimento para DD/MM/AAAA"""
+    if not data:
+        return ""
+    
+    # Remove tudo que não for número
+    data = ''.join(filter(str.isdigit, data))
+    
+    # Se tiver 6 dígitos (DDMMYY), ou 8 dígitos (DDMMYYYY)
+    if len(data) == 6:
+        dia = data[:2]
+        mes = data[2:4]
+        ano = "20" + data[4:] if data[4:] < "30" else "19" + data[4:]
+    elif len(data) == 8:
+        dia = data[:2]
+        mes = data[2:4]
+        ano = data[4:]
+    else:
+        return data  # Não pode ser formatado
+
+    return f"{dia}/{mes}/{ano}"
+
+
 def exibir_pdf_no_navegador(pdf_buffer):
     """Exibe o PDF com botão de download nomeado pelo cliente"""
     try:
-        # Gera o nome do arquivo com o nome do cliente
         nome_cliente = st.session_state.enc_cliente.strip()
         if not nome_cliente:
-            nome_cliente = "encaminhamento"  # nome padrão
+            nome_cliente = "encaminhamento"
 
-        # Remove caracteres inválidos para nomes de arquivos
         nome_arquivo = "".join(c for c in nome_cliente.upper() if c.isalnum() or c in " _-").strip()
         nome_arquivo += ".pdf"
 
         pdf_buffer.seek(0)
 
-        # ✅ Botão com nome personalizado
         st.download_button(
             label="📥 Baixar PDF",
             data=pdf_buffer,
-            file_name=nome_arquivo,  # ← Nome do cliente aqui!
+            file_name=nome_arquivo,
             mime="application/pdf",
-            key="download_pdf_unico"  # chave única para evitar cache
+            key="download_pdf_unico"
         )
 
         st.success(f"✅ PDF gerado com sucesso! Pronto para baixar como: **{nome_arquivo}**")
 
     except Exception as e:
         st.error(f"❌ Erro ao exibir PDF: {str(e)}")
+
+
+# --- ⚠️ BLOCO DE TESTE SEGURO (opcional para testes locais) ---
+if __name__ == "__main__":
+    # Simula o estado necessário
+    st.session_state.loja = "Loja Teste"
+    st.session_state.nome_atendente = "TESTE"
+    # Executa a tela
+    tela_exame_vista()

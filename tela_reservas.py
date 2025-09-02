@@ -1,6 +1,8 @@
+# tela_reservas.py
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timedelta
 from google_planilha import GooglePlanilha
+
 
 def tela_reservas():
     st.subheader("📦 RESERVAS ACUMULADAS")
@@ -8,9 +10,14 @@ def tela_reservas():
     st.info(f"**Atendente:** {st.session_state.nome_atendente}")
     st.markdown("---")
 
-    # Inicializa ou usa a instância do GooglePlanilha
+    # Conecta com Google Sheets
     if 'gsheets' not in st.session_state:
-        st.session_state.gsheets = GooglePlanilha()
+        try:
+            st.session_state.gsheets = GooglePlanilha()
+        except Exception as e:
+            st.error("❌ Falha ao conectar com Google Sheets")
+            st.exception(e)
+            return
     gsheets = st.session_state.gsheets
 
     # Carrega vendedores
@@ -18,7 +25,7 @@ def tela_reservas():
         vendedores_data = gsheets.get_vendedores_por_loja()
         vendedores = [v['VENDEDOR'] for v in vendedores_data]
     except Exception as e:
-        st.error(f"Erro ao carregar vendedores: {e}")
+        st.error(f"❌ Erro ao carregar vendedores: {e}")
         vendedores = []
 
     if not vendedores:
@@ -37,7 +44,7 @@ def tela_reservas():
         key="vend_reservas"
     )
 
-    # Cliente
+    # Campo: Cliente
     cliente_input = st.text_input("Nome do Cliente", key="cliente_reservas_input")
     cliente = cliente_input.strip().upper() if cliente_input else ""
 
@@ -49,7 +56,7 @@ def tela_reservas():
     with cols[0]:
         if st.button("✅ CONVERSÃO", use_container_width=True, type="primary", key="btn_tipo_venda"):
             if not vendedor or not cliente:
-                st.error("Preencha o vendedor e o cliente!")
+                st.error("⚠️ Preencha o vendedor e o cliente!")
                 return
             st.session_state.tipo_reserva = "CONVERSÃO"
             st.session_state.cliente_reserva = cliente
@@ -59,7 +66,7 @@ def tela_reservas():
     with cols[1]:
         if st.button("❌ DESISTÊNCIA", use_container_width=True, type="secondary", key="btn_tipo_perda"):
             if not vendedor or not cliente:
-                st.error("Preencha o vendedor e o cliente!")
+                st.error("⚠️ Preencha o vendedor e o cliente!")
                 return
             st.session_state.tipo_reserva = "DESISTÊNCIA"
             st.session_state.cliente_reserva = cliente
@@ -79,13 +86,48 @@ def tela_reservas():
     st.markdown("---")
     st.success(f"✅ **CONFIRMADO**: {cli} | **Tipo:** {tipo} | Vendedor: {vend}")
 
-    # Botão para registrar diretamente com -1
+    # ✅ VALIDAÇÃO: Verifica se o cliente tem reserva nos últimos 30 dias
     if st.button("✅ REGISTRAR RESERVA", type="primary", use_container_width=True, key="btn_registrar_reserva"):
         if not vendedor or not cliente:
             st.error("⚠️ Preencha todos os campos!")
             return
 
-        # ✅ Prepara o registro com -1 na reserva (sem validação)
+        # 🔍 Busca registros do cliente nos últimos 30 dias
+        try:
+            todos_registros = gsheets.get_all_records()
+            data_limite = datetime.now() - timedelta(days=30)
+            reserva_encontrada = False
+
+            for registro in todos_registros:
+                # Filtra por cliente, loja e reserva positiva
+                if (
+                    registro.get("CLIENTE", "").strip().upper() == cliente and
+                    registro.get("LOJA", "").strip() == st.session_state.loja and
+                    str(registro.get("RESERVA", "")).strip() == "1"
+                ):
+                    try:
+                        data_str = registro.get("DATA", "").strip()
+                        # ✅ Usa %d/%m/%Y para datas com 4 dígitos no ano
+                        data_registro = datetime.strptime(data_str, "%d/%m/%Y")
+                        if data_registro >= data_limite:
+                            reserva_encontrada = True
+                            break
+                    except ValueError as ve:
+                        st.warning(f"Data inválida ignorada: {data_str} → {ve}")
+                        continue
+                    except Exception:
+                        continue
+
+            if not reserva_encontrada:
+                st.error(f"❌ Cliente **{cliente}** não possui uma reserva válida nos últimos 30 dias.")
+                st.info("📌 Para registrar conversão/desistência, ele precisa ter feito uma reserva com `RESERVA = 1` recentemente.")
+                return
+
+        except Exception as e:
+            st.error(f"❌ Erro ao verificar histórico de reservas: {e}")
+            return
+
+        # ✅ Tudo certo: pode registrar
         dados_registro = {
             'loja': st.session_state.loja,
             'atendente': st.session_state.nome_atendente,
@@ -93,10 +135,9 @@ def tela_reservas():
             'cliente': cliente,
             'data': datetime.now().strftime("%d/%m/%Y"),
             'hora': datetime.now().strftime("%H:%M"),
-            'reserva': -1  # Marca consumo de reserva (direto, sem checar)
+            'reserva': -1  # Baixa a reserva
         }
 
-        # Adiciona campos específicos por tipo
         if tipo == "CONVERSÃO":
             dados_registro['atendimento'] = '1'
             dados_registro['venda'] = '1'
@@ -117,9 +158,10 @@ def tela_reservas():
             st.balloons()
             st.success("✅ Reserva registrada com sucesso! (-1)")
             # Limpa o estado
-            del st.session_state.tipo_reserva
-            del st.session_state.cliente_reserva
-            del st.session_state.vendedor_reserva
+            chaves_limpar = ['tipo_reserva', 'cliente_reserva', 'vendedor_reserva']
+            for key in chaves_limpar:
+                if key in st.session_state:
+                    del st.session_state[key]
             st.session_state.etapa = 'loja'
             st.rerun()
         else:
@@ -127,7 +169,8 @@ def tela_reservas():
 
     # Botão Voltar
     if st.button("↩️ VOLTAR", use_container_width=True, key="btn_voltar_reservas_2"):
-        for key in ['tipo_reserva', 'cliente_reserva', 'vendedor_reserva']:
+        chaves_limpar = ['tipo_reserva', 'cliente_reserva', 'vendedor_reserva']
+        for key in chaves_limpar:
             if key in st.session_state:
                 del st.session_state[key]
         st.session_state.etapa = 'loja'

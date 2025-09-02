@@ -280,12 +280,3 @@ def exibir_pdf_no_navegador(pdf_buffer):
 
     except Exception as e:
         st.error(f"❌ Erro ao exibir PDF: {str(e)}")
-
-
-# --- ⚠️ BLOCO DE TESTE SEGURO (opcional para testes locais) ---
-if __name__ == "__main__":
-    # Simula o estado necessário
-    st.session_state.loja = "Loja Teste"
-    st.session_state.nome_atendente = "TESTE"
-    # Executa a tela
-    tela_exame_vista()

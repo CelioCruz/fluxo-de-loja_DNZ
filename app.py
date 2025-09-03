@@ -133,8 +133,7 @@ modulos_subtelas = [
     'tela_consulta',
     'tela_reservas',
     'tela_sem_receita',
-    'tela_exame_vista',
-    'tela_lente',
+    'tela_exame_vista',    
 ]
 
 for nome_modulo in modulos_subtelas:

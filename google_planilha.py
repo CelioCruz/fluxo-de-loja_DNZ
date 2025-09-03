@@ -95,8 +95,8 @@ class GooglePlanilha:
             return
         cabecalhos = [c.strip() for c in self.aba_relatorio.row_values(1)]
         esperados = [
-            'LOJA', 'VENDEDOR', 'CLIENTE', 'DATA', 'ATENDIMENTO', 'RECEITA',
-            'VENDA', 'PERDA', 'RESERVA', 'PESQUISA', 'CONSULTA', 'HORA'
+            'LOJA', 'DATA', 'HORA', 'VENDEDOR', 'CLIENTE', 'ATENDIMENTOS', 'RECEITAS',
+            'PERDAS', 'VENDAS', 'RESERVAS', 'PESQUISAS', 'EXAME OFTALMO',
         ]
         if len(cabecalhos) < 12 or cabecalhos[:12] != esperados:
             st.warning("⚠️ Estrutura da aba 'relatorio' incorreta.")
@@ -243,10 +243,11 @@ class GooglePlanilha:
             dados['hora'] = dados.get('hora') or datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M:%S")
 
             mapeamento = [
-                ('loja', 'LOJA'), ('vendedor', 'VENDEDOR'), ('cliente', 'CLIENTE'),
-                ('data', 'DATA'), ('atendimento', 'ATENDIMENTO'), ('receita', 'RECEITA'),
-                ('venda', 'VENDA'), ('perda', 'PERDA'), ('reserva', 'RESERVA'),
-                ('pesquisa', 'PESQUISA'), ('consulta', 'CONSULTA'), ('hora', 'HORA')
+                ('loja', 'LOJA'), ('data', 'DATA'), ('hora', 'HORA'),
+                ('vendedor', 'VENDEDOR'), ('cliente', 'CLIENTE'),
+                ('atendimento', 'ATENDIMENTOS'), ('receita', 'RECEITAS'),
+                ('perda', 'PERDAS'), ('venda', 'VENDAS'), ('reserva', 'RESERVAS'),
+                ('pesquisa', 'PESQUISAS'), ('consulta', 'EXAME OFTALMO')
             ]
 
             valores = [str(dados.get(campo, '')).strip() for campo, _ in mapeamento]

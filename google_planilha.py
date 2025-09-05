@@ -96,7 +96,7 @@ class GooglePlanilha:
         cabecalhos = [c.strip() for c in self.aba_relatorio.row_values(1)]
         esperados = [
             'LOJA', 'DATA', 'HORA', 'VENDEDOR', 'CLIENTE', 'ATENDIMENTOS', 'RECEITAS',
-            'PERDAS', 'VENDAS', 'RESERVAS', 'PESQUISAS', 'EXAME OFTALMO',
+            'PERDAS', 'VENDAS', 'RESERVAS', 'PESQUISAS', 'EXAME DE VISTA',
         ]
         if len(cabecalhos) < 12 or cabecalhos[:12] != esperados:
             st.warning("⚠️ Estrutura da aba 'relatorio' incorreta.")

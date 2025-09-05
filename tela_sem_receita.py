@@ -1,6 +1,5 @@
-# tela_sem_receita.py
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime
 from google_planilha import GooglePlanilha
 
 
@@ -70,67 +69,39 @@ def tela_sem_receita():
         st.markdown("---")
         st.success(f"✅ **CONFIRMADO**: {conf['cliente']} | Vendedor: {conf['vendedor']}")
 
-        # ✅ VALIDAÇÃO: Verifica se o cliente teve 'perda = 1' nos últimos 30 dias
+        # ✅ Registrar diretamente, SEM validar histórico de perda
         if st.button("💾 Registrar no Sistema", type="secondary", key="btn_salvar_retorno"):
             if not conf['vendedor'] or not conf['cliente']:
                 st.error("⚠️ Dados incompletos!")
                 return
 
             try:
-                # Data limite: 30 dias antes da data de retorno
-                data_retorno = datetime.now()
-                data_limite = data_retorno - timedelta(days=30)
+                dados = {
+                    'loja': st.session_state.loja,
+                    'atendente': st.session_state.nome_atendente,
+                    'vendedor': conf['vendedor'],
+                    'cliente': conf['cliente'],
+                    'data': conf['data'],
+                    'atendimento': '1',
+                    'receita': '',
+                    'venda': '1',
+                    'perda': '-1',  # Baixa a perda (opcional, depende da lógica do seu negócio)
+                    'reserva': '',
+                    'pesquisa': '',
+                    'consulta': '',
+                    'hora': conf['hora']
+                }
 
-                registros = gsheets.get_all_records()
-                perda_encontrada = False
-
-                for reg in registros:
-                    if (
-                        reg.get("CLIENTE", "").strip().upper() == conf['cliente'] and
-                        reg.get("LOJA", "") == st.session_state.loja and
-                        str(reg.get("PERDA", "")).strip() == "1"
-                    ):
-                        try:
-                            data_str = reg.get("DATA", "").strip()
-                            data_registro = datetime.strptime(data_str, "%d/%m/%Y")
-                            if data_limite <= data_registro <= data_retorno:
-                                perda_encontrada = True
-                                break
-                        except (ValueError, TypeError):
-                            continue  # Ignora datas inválidas
-
-                if not perda_encontrada:
-                    st.error(f"❌ Cliente **{conf['cliente']}** não possui um histórico de 'perda' nos últimos 30 dias.")
-                    st.info("📌 Para registrar 'Retorno sem Reserva', ele deve ter tido uma perda registrada recentemente.")
-                    return
+                if gsheets.registrar_atendimento(dados):
+                    st.balloons()
+                    st.success("✅ Dados enviados para a planilha!")
+                    # Limpa após salvar
+                    del st.session_state.retorno_confirmado
+                    st.session_state.etapa = 'loja'
+                    st.rerun()
+                else:
+                    st.error("❌ Falha ao salvar na planilha.")
 
             except Exception as e:
-                st.error(f"❌ Erro ao verificar histórico de perda: {e}")
+                st.error(f"❌ Erro ao salvar na planilha: {e}")
                 return
-
-            # ✅ Tudo certo: registrar
-            dados = {
-                'loja': st.session_state.loja,
-                'atendente': st.session_state.nome_atendente,
-                'vendedor': conf['vendedor'],
-                'cliente': conf['cliente'],
-                'data': conf['data'],
-                'atendimento': '1',
-                'receita': '',
-                'venda': '1',
-                'perda': '-1',  # Baixa a perda
-                'reserva': '',
-                'pesquisa': '',
-                'consulta': '',
-                'hora': conf['hora']
-            }
-
-            if gsheets.registrar_atendimento(dados):
-                st.balloons()
-                st.success("✅ Dados enviados para a planilha!")
-                # Limpa após salvar
-                del st.session_state.retorno_confirmado
-                st.session_state.etapa = 'loja'
-                st.rerun()
-            else:
-                st.error("❌ Falha ao salvar na planilha.")

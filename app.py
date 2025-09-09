@@ -245,8 +245,10 @@ if st.sidebar.button("🚪 Sair do Sistema", use_container_width=True):
     st.rerun()
 
 # --- RODAPÉ ---
+# --- RODAPÉ ---
 st.markdown(
     "<br><hr><center>"
     "<small>💼 Projeto <strong>Leonardo Pesil</strong>, desenvolvido por <strong>Cruz.devsoft</strong> | © 2025</small>"
     "</center>",
     unsafe_allow_html=True
+)

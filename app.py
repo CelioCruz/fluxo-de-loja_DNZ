@@ -1,4 +1,32 @@
 import streamlit as st
+
+# ✅✅✅ INICIALIZAÇÃO DE ESTADO — PRIMEIRA COISA NO SCRIPT!
+if 'etapa' not in st.session_state:
+    st.session_state.etapa = 'login'
+if 'loja' not in st.session_state:
+    st.session_state.loja = ''
+if 'subtela' not in st.session_state:
+    st.session_state.subtela = ''
+if 'nome_atendente' not in st.session_state:
+    st.session_state.nome_atendente = ''
+if 'horario_entrada' not in st.session_state:
+    st.session_state.horario_entrada = None
+if 'horario_saida' not in st.session_state:
+    st.session_state.horario_saida = None
+if 'enc_cliente' not in st.session_state:
+    st.session_state.enc_cliente = ''
+if 'enc_telefone' not in st.session_state:
+    st.session_state.enc_telefone = ''
+if 'enc_nascimento' not in st.session_state:
+    st.session_state.enc_nascimento = ''
+if 'enc_vendedor' not in st.session_state:
+    st.session_state.enc_vendedor = ''
+if 'enc_tipo' not in st.session_state:
+    st.session_state.enc_tipo = 'PARTICULAR'
+if 'pdf_gerado' not in st.session_state:
+    st.session_state.pdf_gerado = False
+
+# --- AGORA sim, continue com os outros imports ---
 import base64
 import json
 import bcrypt
@@ -29,20 +57,6 @@ def set_fundo_cor_solido():
     )
 
 set_fundo_cor_solido()
-
-# --- ESTADO INICIAL ---
-if 'etapa' not in st.session_state:
-    st.session_state.etapa = 'login'
-if 'loja' not in st.session_state:
-    st.session_state.loja = ''
-if 'subtela' not in st.session_state:
-    st.session_state.subtela = ''
-if 'nome_atendente' not in st.session_state:
-    st.session_state.nome_atendente = ''
-if 'horario_entrada' not in st.session_state:
-    st.session_state.horario_entrada = None
-if 'horario_saida' not in st.session_state:
-    st.session_state.horario_saida = None
 
 # 🔹 Função global: atualiza reservas expiradas (com controle de execução)
 def atualizar_reservas():
@@ -125,54 +139,47 @@ except Exception as e:
     st.exception(e)
     st.stop()
 
-# --- CARREGAMENTO DAS SUBTELAS (com importlib) ---
-SUBTELAS = {}
-modulos_subtelas = [
-    'tela_venda_receita',
-    'tela_pesquisa',
-    'tela_consulta',
-    'tela_reservas',
-    'tela_sem_receita',
-    'tela_exame_vista',    
-]
+# === FUNÇÃO: Carrega subtela dinamicamente (só quando necessário) ===
+def carregar_subtela(nome_subtela):
+    """Carrega e retorna a função da subtela solicitada. Executa apenas quando necessário."""
+    nome_modulo = f"tela_{nome_subtela}"
 
-for nome_modulo in modulos_subtelas:
     try:
         module = importlib.import_module(nome_modulo)
 
         # ✅ Procura por função com o mesmo nome do módulo: tela_xxx
         if hasattr(module, nome_modulo):
             func = getattr(module, nome_modulo)
-            chave = nome_modulo.replace('tela_', '')
-            SUBTELAS[chave] = func
             logger.info(f"✅ Função '{nome_modulo}' carregada de {nome_modulo}.py")
+            return func
 
         # ✅ Alternativa: função chamada 'mostrar'
         elif hasattr(module, 'mostrar'):
-            chave = nome_modulo.replace('tela_', '')
-            SUBTELAS[chave] = module.mostrar
             logger.info(f"✅ Usando função 'mostrar' de {nome_modulo}.py")
+            return module.mostrar
 
         # ✅ Fallback: função com nome sem 'tela_'
-        elif hasattr(module, nome_modulo.replace('tela_', '')):
-            func = getattr(module, nome_modulo.replace('tela_', ''))
-            chave = nome_modulo.replace('tela_', '')
-            SUBTELAS[chave] = func
-            logger.info(f"✅ Função '{nome_modulo.replace('tela_', '')}' encontrada em {nome_modulo}.py")
+        elif hasattr(module, nome_subtela):
+            func = getattr(module, nome_subtela)
+            logger.info(f"✅ Função '{nome_subtela}' encontrada em {nome_modulo}.py")
+            return func
 
         else:
             logger.warning(f"⚠️ Módulo {nome_modulo} não tem função esperada.")
             def erro():
                 st.error(f"❌ Falha ao carregar `{nome_modulo}.py`: função não encontrada.")
-            SUBTELAS[nome_modulo.replace('tela_', '')] = erro
+            return erro
 
     except ModuleNotFoundError:
         st.error(f"❌ Módulo não encontrado: `{nome_modulo}.py`. Verifique o nome do arquivo.")
+        def erro():
+            st.error(f"❌ Módulo não encontrado: `{nome_modulo}.py`")
+        return erro
     except Exception as e:
         logger.error(f"❌ Falha ao carregar {nome_modulo}: {e}")
         def erro():
             st.error(f"❌ Erro ao carregar `{nome_modulo}.py`")
-        SUBTELAS[nome_modulo.replace('tela_', '')] = erro
+        return erro
 
 # === FUNÇÃO: Garantir conexão com Google Sheets ===
 def garantir_conexao_gsheets():
@@ -205,8 +212,9 @@ elif st.session_state.etapa == 'subtela':
     atualizar_reservas()
 
     nome_subtela = st.session_state.subtela
-    if nome_subtela in SUBTELAS:
-        SUBTELAS[nome_subtela]()
+    func_subtela = carregar_subtela(nome_subtela)  # ⬅️ Carrega DINAMICAMENTE aqui
+    if func_subtela:
+        func_subtela()  # Executa a função da subtela
     else:
         st.error("❌ Tela não encontrada.")
         if st.button("Voltar ao início", key="btn_voltar_inicio"):
@@ -242,4 +250,3 @@ st.markdown(
     "<small>💼 Projeto <strong>Leonardo Pesil</strong>, desenvolvido por <strong>Cruz.devsoft</strong> | © 2025</small>"
     "</center>",
     unsafe_allow_html=True
-)

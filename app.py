@@ -1,11 +1,42 @@
 import streamlit as st
+import sys
+import os
 import base64
 import json
 import bcrypt
 from datetime import datetime
-from zoneinfo import ZoneInfo
 import importlib
 import logging
+
+# 🔥 FORÇA O PYTHON A ENCONTRAR OS MÓDULOS NA PASTA DO APP.PY — MESMO NO STREAMLIT GUI
+# Isso resolve 99% dos problemas de "ModuleNotFoundError" no Streamlit
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# ✅✅✅ INICIALIZAÇÃO DE ESTADO — PRIMEIRA COISA NO SCRIPT!
+if 'etapa' not in st.session_state:
+    st.session_state.etapa = 'login'
+if 'loja' not in st.session_state:
+    st.session_state.loja = ''
+if 'subtela' not in st.session_state:
+    st.session_state.subtela = ''
+if 'nome_atendente' not in st.session_state:
+    st.session_state.nome_atendente = ''
+if 'horario_entrada' not in st.session_state:
+    st.session_state.horario_entrada = None
+if 'horario_saida' not in st.session_state:
+    st.session_state.horario_saida = None
+if 'enc_cliente' not in st.session_state:
+    st.session_state.enc_cliente = ''
+if 'enc_telefone' not in st.session_state:
+    st.session_state.enc_telefone = ''
+if 'enc_nascimento' not in st.session_state:
+    st.session_state.enc_nascimento = ''
+if 'enc_vendedor' not in st.session_state:
+    st.session_state.enc_vendedor = ''
+if 'enc_tipo' not in st.session_state:
+    st.session_state.enc_tipo = 'PARTICULAR'
+if 'pdf_gerado' not in st.session_state:
+    st.session_state.pdf_gerado = False
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Fluxo de Loja", layout="centered")
@@ -29,20 +60,6 @@ def set_fundo_cor_solido():
     )
 
 set_fundo_cor_solido()
-
-# --- ESTADO INICIAL ---
-if 'etapa' not in st.session_state:
-    st.session_state.etapa = 'login'
-if 'loja' not in st.session_state:
-    st.session_state.loja = ''
-if 'subtela' not in st.session_state:
-    st.session_state.subtela = ''
-if 'nome_atendente' not in st.session_state:
-    st.session_state.nome_atendente = ''
-if 'horario_entrada' not in st.session_state:
-    st.session_state.horario_entrada = None
-if 'horario_saida' not in st.session_state:
-    st.session_state.horario_saida = None
 
 # 🔹 Função global: atualiza reservas expiradas (com controle de execução)
 def atualizar_reservas():
@@ -125,54 +142,79 @@ except Exception as e:
     st.exception(e)
     st.stop()
 
-# --- CARREGAMENTO DAS SUBTELAS (com importlib) ---
-SUBTELAS = {}
-modulos_subtelas = [
-    'tela_venda_receita',
-    'tela_pesquisa',
-    'tela_consulta',
-    'tela_reservas',
-    'tela_sem_receita',
-    'tela_exame_vista',    
-]
+# === FUNÇÃO: Carrega subtela dinamicamente (só quando necessário) ===
+def carregar_subtela(nome_subtela):
+    """Carrega e retorna a função da subtela solicitada. Executa apenas quando necessário."""
+    nome_modulo = f"tela_{nome_subtela}"
+    
+    # --- DEBUG: Mostra o ambiente atual (para diagnóstico) ---
+    st.write("### 🐍 Debug de Importação (apenas para desenvolvimento)")
+    st.write(f"🔍 Tentando importar módulo: `{nome_modulo}`")
+    st.write(f"📂 Diretório atual: `{os.getcwd()}`")
+    st.write(f"📋 Caminhos do Python (sys.path):")
+    for i, p in enumerate(sys.path):
+        st.write(f"   {i}: {p}")
 
-for nome_modulo in modulos_subtelas:
+    # --- FORÇA ADICIONAR O DIRETÓRIO DO PROJETO (garantia extra) ---
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+        st.info(f"✅ Adicionado ao sys.path: `{current_dir}`")
+
     try:
+        # 🔥 FORÇA RECARGA DO MÓDULO SE JÁ ESTIVER CARREGADO (evita cache antigo)
+        if nome_modulo in sys.modules:
+            logger.info(f"🔁 Recarregando módulo: {nome_modulo}")
+            importlib.reload(sys.modules[nome_modulo])
+
         module = importlib.import_module(nome_modulo)
+        logger.info(f"✅ Módulo '{nome_modulo}' carregado com sucesso!")
 
-        # ✅ Procura por função com o mesmo nome do módulo: tela_xxx
-        if hasattr(module, nome_modulo):
-            func = getattr(module, nome_modulo)
-            chave = nome_modulo.replace('tela_', '')
-            SUBTELAS[chave] = func
-            logger.info(f"✅ Função '{nome_modulo}' carregada de {nome_modulo}.py")
+        # Lista funções disponíveis para debug
+        funcoes_disponiveis = [name for name in dir(module) if not name.startswith('_') and callable(getattr(module, name))]
+        logger.info(f"📌 Funções disponíveis em {nome_modulo}: {funcoes_disponiveis}")
 
-        # ✅ Alternativa: função chamada 'mostrar'
-        elif hasattr(module, 'mostrar'):
-            chave = nome_modulo.replace('tela_', '')
-            SUBTELAS[chave] = module.mostrar
-            logger.info(f"✅ Usando função 'mostrar' de {nome_modulo}.py")
+        # ✅ Prioridade 1: Função 'mostrar()' (padrão recomendado)
+        if hasattr(module, 'mostrar'):
+            logger.info(f"🎯 Encontrada função: 'mostrar()' → Usando como padrão")
+            return module.mostrar
 
-        # ✅ Fallback: função com nome sem 'tela_'
-        elif hasattr(module, nome_modulo.replace('tela_', '')):
-            func = getattr(module, nome_modulo.replace('tela_', ''))
-            chave = nome_modulo.replace('tela_', '')
-            SUBTELAS[chave] = func
-            logger.info(f"✅ Função '{nome_modulo.replace('tela_', '')}' encontrada em {nome_modulo}.py")
+        # ✅ Prioridade 2: Função com mesmo nome do módulo (ex: tela_exame_vista)
+        elif hasattr(module, nome_modulo):
+            logger.info(f"🎯 Encontrada função: '{nome_modulo}()' → Usando função principal")
+            return getattr(module, nome_modulo)
+
+        # ✅ Prioridade 3: Função sem prefixo 'tela_' (ex: exame_vista)
+        elif hasattr(module, nome_subtela):
+            logger.info(f"🎯 Encontrada função: '{nome_subtela}()' → Fallback")
+            return getattr(module, nome_subtela)
 
         else:
-            logger.warning(f"⚠️ Módulo {nome_modulo} não tem função esperada.")
+            logger.warning(f"⚠️ Nenhuma função válida encontrada em {nome_modulo}. Esperava: 'mostrar()', '{nome_modulo}()', ou '{nome_subtela}()'")
+            st.error(f"❌ Falha ao carregar `{nome_modulo}.py`: nenhuma função válida encontrada.")
+            st.write(f"💡 Funções disponíveis: {', '.join(funcoes_disponiveis)}")
             def erro():
-                st.error(f"❌ Falha ao carregar `{nome_modulo}.py`: função não encontrada.")
-            SUBTELAS[nome_modulo.replace('tela_', '')] = erro
+                st.error(f"❌ Nenhuma função válida encontrada no módulo `{nome_modulo}`")
+            return erro
 
     except ModuleNotFoundError:
-        st.error(f"❌ Módulo não encontrado: `{nome_modulo}.py`. Verifique o nome do arquivo.")
+        st.error(f"❌ Módulo não encontrado: `{nome_modulo}`")
+        st.error("❗ Isso é estranho — o arquivo existe na pasta, mas o Streamlit não consegue encontrar.")
+        st.error("💡 Soluções possíveis:")
+        st.error("   1. Reinicie o servidor Streamlit (Ctrl+C → novo terminal → rerun)")
+        st.error("   2. Verifique se o arquivo `tela_exame_vista.py` está na mesma pasta que app.py")
+        st.error("   3. Confirme que o ambiente Python do Streamlit é o mesmo onde os arquivos estão instalados")
+        st.error("   4. Execute: `streamlit cache clear` e reinicie")
+        def erro():
+            st.error(f"❌ Não foi possível carregar `{nome_modulo}`")
+        return erro
+
     except Exception as e:
         logger.error(f"❌ Falha ao carregar {nome_modulo}: {e}")
+        st.error(f"❌ Erro inesperado ao carregar `{nome_modulo}`: {str(e)}")
         def erro():
-            st.error(f"❌ Erro ao carregar `{nome_modulo}.py`")
-        SUBTELAS[nome_modulo.replace('tela_', '')] = erro
+            st.error(f"❌ Erro interno: {str(e)}")
+        return erro
 
 # === FUNÇÃO: Garantir conexão com Google Sheets ===
 def garantir_conexao_gsheets():
@@ -205,8 +247,9 @@ elif st.session_state.etapa == 'subtela':
     atualizar_reservas()
 
     nome_subtela = st.session_state.subtela
-    if nome_subtela in SUBTELAS:
-        SUBTELAS[nome_subtela]()
+    func_subtela = carregar_subtela(nome_subtela)  # ⬅️ Carrega DINAMICAMENTE aqui
+    if func_subtela:
+        func_subtela()  # Executa a função da subtela
     else:
         st.error("❌ Tela não encontrada.")
         if st.button("Voltar ao início", key="btn_voltar_inicio"):

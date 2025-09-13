@@ -6,7 +6,7 @@ from datetime import datetime
 from google_planilha import GooglePlanilha
 
 
-def tela_exame_vista():
+def mostrar():
     """Tela de encaminhamento para exame oftalmológico."""
     st.subheader("🩺 ENCAMINHAMENTO")
 
@@ -97,9 +97,8 @@ def tela_exame_vista():
             st.rerun()
 
 
-# === FUNÇÕES AUXILIARES ===
+# === FUNÇÕES AUXILIARES (mantidas inalteradas) ===
 def _inicializar_session_state():
-    """Inicializa variáveis no session_state."""
     defaults = {
         'enc_cliente': "",
         'enc_telefone': "",
@@ -114,7 +113,6 @@ def _inicializar_session_state():
 
 
 def _carregar_vendedores():
-    """Carrega lista de vendedores da loja atual."""
     try:
         if 'gsheets' not in st.session_state:
             st.session_state.gsheets = GooglePlanilha()
@@ -127,7 +125,6 @@ def _carregar_vendedores():
 
 
 def _limpar_dados_encaminhamento():
-    """Limpa os dados de encaminhamento do session_state."""
     chaves = [
         'enc_cliente', 'enc_telefone', 'enc_nascimento',
         'enc_vendedor', 'enc_tipo', 'pdf_gerado'
@@ -139,9 +136,7 @@ def _limpar_dados_encaminhamento():
 
 # === GERAÇÃO DE PDF EM MEMÓRIA ===
 def gerar_pdf_em_memoria():
-    """Gera o PDF com validação e suporte a acentos"""
     try:
-        # ✅ Validação dos dados
         if not st.session_state.enc_cliente:
             raise ValueError("Nome do paciente é obrigatório")
         if not st.session_state.enc_telefone:
@@ -153,48 +148,37 @@ def gerar_pdf_em_memoria():
         if st.session_state.enc_tipo not in ["PARTICULAR", "PLANO"]:
             raise ValueError("Tipo de atendimento inválido")
 
-        # ✅ Cria buffer em memória
-        pdf_buffer = io.BytesIO()  # ← Use BytesIO, não BytesIO
+        pdf_buffer = io.BytesIO()
 
-        # ✅ Configura o FPDF
         pdf = FPDF(format='A4', unit='mm', orientation='P')
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
 
-        # ✅ Fonte padrão
         pdf.set_font("Arial", 'B', 16)
-
-        # ✅ Título centralizado
         pdf.cell(0, 10, "ENCAMINHAMENTO", ln=True, align='C')
         pdf.ln(10)
 
-        # ✅ Função para adicionar campo
         def add_item(label, value):
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(40, 8, f"{label}:", 0, 0)
             pdf.set_font("Arial", '', 12)
             text = str(value) if value else ""
-            # Trata acentos (usando latin1)
             try:
                 text = text.encode('latin1', 'replace').decode('latin1')
             except AttributeError:
-                # Se for bytearray, já é binário
                 pass
             pdf.cell(0, 8, f" {text}", ln=True)
             pdf.set_x(10)
 
-        # ✅ Dados do paciente
         add_item("Paciente", st.session_state.enc_cliente)
         add_item("Telefone", formatar_telefone(st.session_state.enc_telefone))
         add_item("Nascimento", formatar_data_nascimento(st.session_state.enc_nascimento))
         add_item("Atendimento", st.session_state.enc_tipo)
 
-        # ✅ Assinatura
         pdf.set_font("Arial", '', 12)
         pdf.cell(0, 6, "Consultor", ln=True, align='C')
         pdf.cell(0, 6, st.session_state.enc_vendedor, ln=True, align='C')
 
-        # --- MENSAGEM FINAL ---
         pdf.ln(15)
         pdf.set_font("Arial", '', 11)
         pdf.set_text_color(50, 50, 50)
@@ -204,15 +188,12 @@ def gerar_pdf_em_memoria():
             nome_cliente = "Cliente"
 
         tratamento = "Sra." if nome_cliente.split()[-1].endswith('a') and len(nome_cliente.split()[-1]) > 1 else "Sr."
-
         data_hoje = datetime.now().strftime("%d/%m/%Y")
         mensagem_final = f"Hoje ({data_hoje}), encaminhamento para exame oftalmológico."
         pdf.cell(0, 8, mensagem_final, ln=True, align='L')
 
-        # ✅ Gera o PDF como bytes e escreve diretamente no buffer
-        pdf_output = pdf.output(dest='S')  # → bytearray ou bytes
-        pdf_buffer.write(pdf_output)  # ← Escreve diretamente
-
+        pdf_output = pdf.output(dest='S')
+        pdf_buffer.write(pdf_output)
         pdf_buffer.seek(0)
         return pdf_buffer
 
@@ -222,7 +203,6 @@ def gerar_pdf_em_memoria():
 
 
 def formatar_telefone(tel):
-    """Formata telefone para (XX) XXXXX-XXXX ou (XX) XXXX-XXXX"""
     if not tel:
         return ""
     tel = ''.join(filter(str.isdigit, tel))
@@ -234,14 +214,9 @@ def formatar_telefone(tel):
 
 
 def formatar_data_nascimento(data):
-    """Formata data de nascimento para DD/MM/AAAA"""
     if not data:
         return ""
-    
-    # Remove tudo que não for número
     data = ''.join(filter(str.isdigit, data))
-    
-    # Se tiver 6 dígitos (DDMMYY), ou 8 dígitos (DDMMYYYY)
     if len(data) == 6:
         dia = data[:2]
         mes = data[2:4]
@@ -251,13 +226,11 @@ def formatar_data_nascimento(data):
         mes = data[2:4]
         ano = data[4:]
     else:
-        return data  # Não pode ser formatado
-
+        return data
     return f"{dia}/{mes}/{ano}"
 
 
 def exibir_pdf_no_navegador(pdf_buffer):
-    """Exibe o PDF com botão de download nomeado pelo cliente"""
     try:
         nome_cliente = st.session_state.enc_cliente.strip()
         if not nome_cliente:

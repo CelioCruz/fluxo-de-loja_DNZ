@@ -104,4 +104,8 @@ def tela_sem_receita():
 
             except Exception as e:
                 st.error(f"❌ Erro ao salvar na planilha: {e}")
+<<<<<<< HEAD
                 return
+=======
+                return
+>>>>>>> d8faf8892876228deebbf43392b052e30625df9c

@@ -1,6 +1,38 @@
 import streamlit as st
 import sys
 import os
+<<<<<<< HEAD
+=======
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# ✅✅✅ INICIALIZAÇÃO DE ESTADO — PRIMEIRA COISA NO SCRIPT!
+if 'etapa' not in st.session_state:
+    st.session_state.etapa = 'login'
+if 'loja' not in st.session_state:
+    st.session_state.loja = ''
+if 'subtela' not in st.session_state:
+    st.session_state.subtela = ''
+if 'nome_atendente' not in st.session_state:
+    st.session_state.nome_atendente = ''
+if 'horario_entrada' not in st.session_state:
+    st.session_state.horario_entrada = None
+if 'horario_saida' not in st.session_state:
+    st.session_state.horario_saida = None
+if 'enc_cliente' not in st.session_state:
+    st.session_state.enc_cliente = ''
+if 'enc_telefone' not in st.session_state:
+    st.session_state.enc_telefone = ''
+if 'enc_nascimento' not in st.session_state:
+    st.session_state.enc_nascimento = ''
+if 'enc_vendedor' not in st.session_state:
+    st.session_state.enc_vendedor = ''
+if 'enc_tipo' not in st.session_state:
+    st.session_state.enc_tipo = 'PARTICULAR'
+if 'pdf_gerado' not in st.session_state:
+    st.session_state.pdf_gerado = False
+
+# --- AGORA sim, continue com os outros imports ---
+>>>>>>> d8faf8892876228deebbf43392b052e30625df9c
 import base64
 import json
 import bcrypt
@@ -146,6 +178,7 @@ except Exception as e:
 def carregar_subtela(nome_subtela):
     """Carrega e retorna a função da subtela solicitada. Executa apenas quando necessário."""
     nome_modulo = f"tela_{nome_subtela}"
+<<<<<<< HEAD
     
     # --- DEBUG: Mostra o ambiente atual (para diagnóstico) ---
     st.write("### 🐍 Debug de Importação (apenas para desenvolvimento)")
@@ -160,6 +193,8 @@ def carregar_subtela(nome_subtela):
     if current_dir not in sys.path:
         sys.path.insert(0, current_dir)
         st.info(f"✅ Adicionado ao sys.path: `{current_dir}`")
+=======
+>>>>>>> d8faf8892876228deebbf43392b052e30625df9c
 
     try:
         # 🔥 FORÇA RECARGA DO MÓDULO SE JÁ ESTIVER CARREGADO (evita cache antigo)
@@ -170,6 +205,7 @@ def carregar_subtela(nome_subtela):
         module = importlib.import_module(nome_modulo)
         logger.info(f"✅ Módulo '{nome_modulo}' carregado com sucesso!")
 
+<<<<<<< HEAD
         # Lista funções disponíveis para debug
         funcoes_disponiveis = [name for name in dir(module) if not name.startswith('_') and callable(getattr(module, name))]
         logger.info(f"📌 Funções disponíveis em {nome_modulo}: {funcoes_disponiveis}")
@@ -188,12 +224,31 @@ def carregar_subtela(nome_subtela):
         elif hasattr(module, nome_subtela):
             logger.info(f"🎯 Encontrada função: '{nome_subtela}()' → Fallback")
             return getattr(module, nome_subtela)
+=======
+        # ✅ Procura por função com o mesmo nome do módulo: tela_xxx
+        if hasattr(module, nome_modulo):
+            func = getattr(module, nome_modulo)
+            logger.info(f"✅ Função '{nome_modulo}' carregada de {nome_modulo}.py")
+            return func
+
+        # ✅ Alternativa: função chamada 'mostrar'
+        elif hasattr(module, 'mostrar'):
+            logger.info(f"✅ Usando função 'mostrar' de {nome_modulo}.py")
+            return module.mostrar
+
+        # ✅ Fallback: função com nome sem 'tela_'
+        elif hasattr(module, nome_subtela):
+            func = getattr(module, nome_subtela)
+            logger.info(f"✅ Função '{nome_subtela}' encontrada em {nome_modulo}.py")
+            return func
+>>>>>>> d8faf8892876228deebbf43392b052e30625df9c
 
         else:
             logger.warning(f"⚠️ Nenhuma função válida encontrada em {nome_modulo}. Esperava: 'mostrar()', '{nome_modulo}()', ou '{nome_subtela}()'")
             st.error(f"❌ Falha ao carregar `{nome_modulo}.py`: nenhuma função válida encontrada.")
             st.write(f"💡 Funções disponíveis: {', '.join(funcoes_disponiveis)}")
             def erro():
+<<<<<<< HEAD
                 st.error(f"❌ Nenhuma função válida encontrada no módulo `{nome_modulo}`")
             return erro
 
@@ -209,11 +264,25 @@ def carregar_subtela(nome_subtela):
             st.error(f"❌ Não foi possível carregar `{nome_modulo}`")
         return erro
 
+=======
+                st.error(f"❌ Falha ao carregar `{nome_modulo}.py`: função não encontrada.")
+            return erro
+
+    except ModuleNotFoundError:
+        st.error(f"❌ Módulo não encontrado: `{nome_modulo}.py`. Verifique o nome do arquivo.")
+        def erro():
+            st.error(f"❌ Módulo não encontrado: `{nome_modulo}.py`")
+        return erro
+>>>>>>> d8faf8892876228deebbf43392b052e30625df9c
     except Exception as e:
         logger.error(f"❌ Falha ao carregar {nome_modulo}: {e}")
         st.error(f"❌ Erro inesperado ao carregar `{nome_modulo}`: {str(e)}")
         def erro():
+<<<<<<< HEAD
             st.error(f"❌ Erro interno: {str(e)}")
+=======
+            st.error(f"❌ Erro ao carregar `{nome_modulo}.py`")
+>>>>>>> d8faf8892876228deebbf43392b052e30625df9c
         return erro
 
 # === FUNÇÃO: Garantir conexão com Google Sheets ===
@@ -279,6 +348,7 @@ if st.sidebar.button("🚪 Sair do Sistema", use_container_width=True):
     st.session_state.clear()
     st.rerun()
 
+# --- RODAPÉ ---
 # --- RODAPÉ ---
 st.markdown(
     "<br><hr><center>"

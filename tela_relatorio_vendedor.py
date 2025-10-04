@@ -1,5 +1,3 @@
-# tela_relatorio_vendedor.py
-
 import streamlit as st
 import pandas as pd
 import sys
@@ -161,12 +159,9 @@ def mostrar():
             "DATA": ["data", "dt"],
             "LOJA": ["loja", "unidade", "filial"],
             "CLIENTE": ["cliente", "nome"],
-            "ATENDIMENTO": ["atendimento", "atend"],
             "RECEITA": ["receita", "faturamento"],
             "VENDA": ["venda", "pedidos"],
             "PERDA": ["perda", "cancelamentos"],
-            "PESQUISA": ["pesquisa", "pesquisas"],
-            "CONSULTA": ["consulta", "exame", "exame de vista"],
             "RESERVA": ["reserva", "agendamento"]
         }
 
@@ -180,12 +175,12 @@ def mostrar():
         if colunas_finais:
             df = df[list(colunas_finais.keys())].rename(columns=colunas_finais)
 
-        ordem = ["DATA", "LOJA", "CLIENTE", "ATENDIMENTO", "RECEITA", "VENDA", "PERDA", "PESQUISA", "CONSULTA", "RESERVA"]
+        ordem = ["DATA", "LOJA", "CLIENTE", "RECEITA", "VENDA", "PERDA", "RESERVA"]
         colunas_existentes = [c for c in ordem if c in df.columns]
         df = df[colunas_existentes].copy()
 
         # Limpeza numérica
-        colunas_numericas = ["ATENDIMENTO", "RECEITA", "VENDA", "PERDA", "PESQUISA", "CONSULTA", "RESERVA"]
+        colunas_numericas = ["RECEITA", "VENDA", "PERDA", "RESERVA"]
         for col in colunas_numericas:
             if col in df.columns:
                 df[col] = df[col].astype(str)
@@ -212,11 +207,10 @@ def mostrar():
         # Resumo
         st.markdown("### Resumo (Hoje)")
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Atendimentos", len(df))
-        col2.metric("Receitas", f"{int(df['RECEITA'].sum())}" if "RECEITA" in df.columns and df["RECEITA"].sum() != 0 else "0")
-        col3.metric("Vendas", f"{int(df['VENDA'].sum())}" if "VENDA" in df.columns and df["VENDA"].sum() != 0 else "0")
-        col4.metric("Perdas", f"{int(df['PERDA'].sum())}" if "PERDA" in df.columns and df["PERDA"].sum() != 0 else "0")
-
+        col1.metric("Receitas", f"{int(df['RECEITA'].sum())}" if "RECEITA" in df.columns and df["RECEITA"].sum() != 0 else "0")
+        col2.metric("Vendas", f"{int(df['VENDA'].sum())}" if "VENDA" in df.columns and df["VENDA"].sum() != 0 else "0")
+        col3.metric("Perdas", f"{int(df['PERDA'].sum())}" if "PERDA" in df.columns and df["PERDA"].sum() != 0 else "0")
+        col4.metric("Reservas", f"{int(df['RESERVA'].sum())}" if "RESERVA" in df.columns and df["RESERVA"].sum() != 0 else "0")
         # Download
         try:
             buffer = io.BytesIO()

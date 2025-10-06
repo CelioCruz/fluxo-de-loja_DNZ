@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from google_planilha import GooglePlanilha  
 
-def tl_sem_receita():
+def tela_sem_receita():
     st.subheader("🔄 RETORNO SEM RESERVA")
     st.info(f"**Loja:** {st.session_state.loja}")
     st.info(f"**Usuário:** {st.session_state.nome_atendente}")

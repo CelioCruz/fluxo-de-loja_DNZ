@@ -1,10 +1,8 @@
-import streamlit as st
+﻿import streamlit as st
 from fpdf import FPDF
-import base64
 import io
 from datetime import datetime
 from google_planilha import GooglePlanilha
-
 
 def mostrar():
     """Tela de encaminhamento para exame oftalmológico."""
@@ -13,243 +11,174 @@ def mostrar():
     # Inicializa campos no session_state
     _inicializar_session_state()
 
-    # Campo: Nome do Paciente
-    cliente_input = st.text_input(
-        "Nome do Paciente",
-        value=st.session_state.enc_cliente,
-        key="enc_cliente_input"
-    ).strip().upper()
-    st.session_state.enc_cliente = cliente_input
+    # Layout em colunas para os dados do paciente
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        cliente_input = st.text_input(
+            "Nome do Paciente",
+            value=st.session_state.enc_cliente,
+            key="enc_cliente_input"
+        ).strip().upper()
+        st.session_state.enc_cliente = cliente_input
 
-    # Campo: Telefone
-    telefone_input = st.text_input(
-        "Telefone",
-        value=st.session_state.enc_telefone,
-        placeholder="(00) 00000-0000",
-        key="enc_telefone_input"
-    )
-    st.session_state.enc_telefone = telefone_input
+        telefone_input = st.text_input(
+            "Telefone",
+            value=st.session_state.enc_telefone,
+            placeholder="(00) 00000-0000",
+            key="enc_telefone_input"
+        )
+        st.session_state.enc_telefone = telefone_input
 
-    # Campo: Data de Nascimento
-    nascimento_input = st.text_input(
-        "Data de Nascimento",
-        value=st.session_state.enc_nascimento,
-        placeholder="DD/MM/AAAA",
-        key="enc_nascimento_input"
-    )
-    st.session_state.enc_nascimento = nascimento_input
+    with col_b:
+        nascimento_input = st.text_input(
+            "Data de Nascimento",
+            value=st.session_state.enc_nascimento,
+            placeholder="DD/MM/AAAA",
+            key="enc_nascimento_input"
+        )
+        st.session_state.enc_nascimento = nascimento_input
 
-    # Campo: Tipo de Atendimento (PARTICULAR / PLANO)
-    tipo_selecionado = st.radio(
-        "Tipo de Atendimento",
-        options=["PARTICULAR", "PLANO"],
-        index=0 if st.session_state.enc_tipo == "PARTICULAR" else 1,
-        horizontal=True
-    )
-    st.session_state.enc_tipo = tipo_selecionado
+        tipo_selecionado = st.radio(
+            "Tipo de Atendimento",
+            options=["PARTICULAR", "PLANO"],
+            index=0 if st.session_state.enc_tipo == "PARTICULAR" else 1,
+            horizontal=True
+        )
+        st.session_state.enc_tipo = tipo_selecionado
 
     # Carrega vendedores
     vendedores = _carregar_vendedores()
     if not vendedores:
-        return
+        st.warning("⚠️ Carregando vendedores...")
+        vendedores = ["NENHUM"]
 
     # Seleciona vendedor
+    idx_vend = 0
     if st.session_state.enc_vendedor in vendedores:
-        index_vendedor = vendedores.index(st.session_state.enc_vendedor)
-    else:
-        index_vendedor = 0
+        idx_vend = vendedores.index(st.session_state.enc_vendedor)
 
     st.session_state.enc_vendedor = st.selectbox(
         "Vendedor que encaminhou",
         options=vendedores,
-        index=index_vendedor,
+        index=idx_vend,
         key="sel_vendedor_enc"
     )
 
     st.markdown("---")
 
     # Botões: Gerar PDF e Voltar
-    col1, col2 = st.columns([1, 1])
+    c1, c2 = st.columns(2)
 
-    with col1:
-        if st.button("🖨️ GERAR PDF", use_container_width=True):
-            with st.spinner("Gerando PDF..."):
-                pdf_buffer = gerar_pdf_em_memoria()
-                if pdf_buffer:
-                    st.success("✅ PDF gerado com sucesso!")
-                    exibir_pdf_no_navegador(pdf_buffer)
-                    st.session_state.pdf_gerado = True
-                else:
-                    st.error("❌ Falha ao gerar PDF.")
+    with c1:
+        if st.button("🖨️ GERAR ENCAMINHAMENTO", use_container_width=True, type="primary"):
+            if not st.session_state.enc_cliente:
+                st.error("⚠️ O nome do paciente é obrigatório.")
+            else:
+                with st.spinner("Gerando documento..."):
+                    pdf_bytes = gerar_pdf_bytes()
+                    if pdf_bytes:
+                        st.session_state.pdf_bytes = pdf_bytes
+                        st.session_state.pdf_gerado = True
+                        st.success("✅ Documento pronto!")
+                    else:
+                        st.error("❌ Erro ao gerar o arquivo PDF.")
 
-    with col2:
+    with c2:
         if st.button("↩️ Voltar", use_container_width=True):
             st.session_state.etapa = 'atendimento'
             st.session_state.subtela = ''
             st.rerun()
 
-    # Botão: Concluído – Voltar à loja
-    if st.session_state.get('pdf_gerado', False):
+    # Se o PDF foi gerado, mostra o botão de download
+    if st.session_state.get('pdf_gerado') and 'pdf_bytes' in st.session_state:
         st.markdown("---")
+        nome_arquivo = f"ENCAMINHAMENTO_{st.session_state.enc_cliente.replace(' ', '_')}.pdf"
+        
+        st.download_button(
+            label="📥 BAIXAR E IMPRIMIR PDF",
+            data=st.session_state.pdf_bytes,
+            file_name=nome_arquivo,
+            mime="application/pdf",
+            use_container_width=True,
+            key="btn_download_final"
+        )
+        
         if st.button("✅ Concluído – Voltar à loja", use_container_width=True):
             _limpar_dados_encaminhamento()
             st.session_state.etapa = 'loja'
             st.rerun()
 
 
-# === FUNÇÕES AUXILIARES (mantidas inalteradas) ===
 def _inicializar_session_state():
-    defaults = {
-        'enc_cliente': "",
-        'enc_telefone': "",
-        'enc_nascimento': "",
-        'enc_vendedor': "",
-        'enc_tipo': "PARTICULAR",
-        'pdf_gerado': False
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
-
+    for key, val in {
+        'enc_cliente': "", 'enc_telefone': "", 'enc_nascimento': "",
+        'enc_vendedor': "", 'enc_tipo': "PARTICULAR", 'pdf_gerado': False
+    }.items():
+        if key not in st.session_state: st.session_state[key] = val
 
 def _carregar_vendedores():
     try:
-        if 'gsheets' not in st.session_state:
-            st.session_state.gsheets = GooglePlanilha()
-        gsheets = st.session_state.gsheets
-        vendedores_data = gsheets.get_vendedores_por_loja()
-        return [v['VENDEDOR'] for v in vendedores_data] if vendedores_data else []
-    except Exception as e:
-        st.error(f"❌ Erro ao carregar vendedores: {str(e)}")
-        return []
-
+        if 'gsheets' not in st.session_state: st.session_state.gsheets = GooglePlanilha()
+        vends = st.session_state.gsheets.get_vendedores_por_loja()
+        return [v['VENDEDOR'] for v in vends] if vends else []
+    except: return []
 
 def _limpar_dados_encaminhamento():
-    chaves = [
-        'enc_cliente', 'enc_telefone', 'enc_nascimento',
-        'enc_vendedor', 'enc_tipo', 'pdf_gerado'
-    ]
-    for key in chaves:
-        if key in st.session_state:
-            del st.session_state[key]
-
-
-# === GERAÇÃO DE PDF EM MEMÓRIA ===
-def gerar_pdf_em_memoria():
-    try:
-        if not st.session_state.enc_cliente:
-            raise ValueError("Nome do paciente é obrigatório")
-        if not st.session_state.enc_telefone:
-            raise ValueError("Telefone é obrigatório")
-        if not st.session_state.enc_nascimento:
-            raise ValueError("Data de nascimento é obrigatória")
-        if not st.session_state.enc_vendedor:
-            raise ValueError("Vendedor é obrigatório")
-        if st.session_state.enc_tipo not in ["PARTICULAR", "PLANO"]:
-            raise ValueError("Tipo de atendimento inválido")
-
-        pdf_buffer = io.BytesIO()
-
-        pdf = FPDF(format='A4', unit='mm', orientation='P')
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
-
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, "ENCAMINHAMENTO", ln=True, align='C')
-        pdf.ln(10)
-
-        def add_item(label, value):
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(40, 8, f"{label}:", 0, 0)
-            pdf.set_font("Arial", '', 12)
-            text = str(value) if value else ""
-            try:
-                text = text.encode('latin1', 'replace').decode('latin1')
-            except AttributeError:
-                pass
-            pdf.cell(0, 8, f" {text}", ln=True)
-            pdf.set_x(10)
-
-        add_item("Paciente", st.session_state.enc_cliente)
-        add_item("Telefone", formatar_telefone(st.session_state.enc_telefone))
-        add_item("Nascimento", formatar_data_nascimento(st.session_state.enc_nascimento))
-        add_item("Atendimento", st.session_state.enc_tipo)
-
-        pdf.set_font("Arial", '', 12)
-        pdf.cell(0, 6, "Consultor", ln=True, align='C')
-        pdf.cell(0, 6, st.session_state.enc_vendedor, ln=True, align='C')
-
-        pdf.ln(15)
-        pdf.set_font("Arial", '', 11)
-        pdf.set_text_color(50, 50, 50)
-
-        nome_cliente = st.session_state.enc_cliente.strip()
-        if not nome_cliente:
-            nome_cliente = "Cliente"
-
-        tratamento = "Sra." if nome_cliente.split()[-1].endswith('a') and len(nome_cliente.split()[-1]) > 1 else "Sr."
-        data_hoje = datetime.now().strftime("%d/%m/%Y")
-        mensagem_final = f"Hoje ({data_hoje}), encaminhamento para exame oftalmológico."
-        pdf.cell(0, 8, mensagem_final, ln=True, align='L')
-
-        pdf_output = pdf.output(dest='S')
-        pdf_buffer.write(pdf_output)
-        pdf_buffer.seek(0)
-        return pdf_buffer
-
-    except Exception as e:
-        st.error(f"❌ Erro ao gerar PDF: {str(e)}")
-        return None
-
+    for k in ['enc_cliente', 'enc_telefone', 'enc_nascimento', 'enc_vendedor', 'enc_tipo', 'pdf_gerado', 'pdf_bytes']:
+        if k in st.session_state: del st.session_state[k]
 
 def formatar_telefone(tel):
-    if not tel:
-        return ""
-    tel = ''.join(filter(str.isdigit, tel))
-    if len(tel) == 11:
-        return f"({tel[:2]}) {tel[2:7]}-{tel[7:]}"
-    elif len(tel) == 10:
-        return f"({tel[:2]}) {tel[2:6]}-{tel[6:]}"
+    tel = ''.join(filter(str.isdigit, str(tel)))
+    if len(tel) == 11: return f"({tel[:2]}) {tel[2:7]}-{tel[7:]}"
+    if len(tel) == 10: return f"({tel[:2]}) {tel[2:6]}-{tel[6:]}"
     return tel
 
+def formatar_data(data):
+    d = ''.join(filter(str.isdigit, str(data)))
+    if len(d) == 8: return f"{d[:2]}/{d[2:4]}/{d[4:]}"
+    return data
 
-def formatar_data_nascimento(data):
-    if not data:
-        return ""
-    data = ''.join(filter(str.isdigit, data))
-    if len(data) == 6:
-        dia = data[:2]
-        mes = data[2:4]
-        ano = "20" + data[4:] if data[4:] < "30" else "19" + data[4:]
-    elif len(data) == 8:
-        dia = data[:2]
-        mes = data[2:4]
-        ano = data[4:]
-    else:
-        return data
-    return f"{dia}/{mes}/{ano}"
-
-
-def exibir_pdf_no_navegador(pdf_buffer):
+def gerar_pdf_bytes():
     try:
-        nome_cliente = st.session_state.enc_cliente.strip()
-        if not nome_cliente:
-            nome_cliente = "encaminhamento"
+        # Usamos fpdf2 (ou fpdf padrão)
+        pdf = FPDF(orientation='P', unit='mm', format='A4')
+        pdf.add_page()
+        
+        # Título
+        pdf.set_font("Arial", 'B', 20)
+        pdf.cell(0, 20, "ENCAMINHAMENTO EXAME", ln=True, align='C')
+        pdf.ln(10)
+        
+        # Dados do Paciente
+        pdf.set_font("Arial", 'B', 12)
+        pdf.set_fill_color(240, 240, 240)
+        pdf.cell(0, 10, " DADOS DO PACIENTE", ln=True, fill=True)
+        pdf.ln(2)
+        
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(0, 8, f"Paciente: {st.session_state.enc_cliente}", ln=True)
+        pdf.cell(0, 8, f"Nascimento: {formatar_data(st.session_state.enc_nascimento)}", ln=True)
+        pdf.cell(0, 8, f"Telefone: {formatar_telefone(st.session_state.enc_telefone)}", ln=True)
+        pdf.cell(0, 8, f"Atendimento: {st.session_state.enc_tipo}", ln=True)
+        pdf.ln(10)
+        
+        # Encaminhado por
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, " RESPONSÁVEL PELO ENCAMINHAMENTO", ln=True, fill=True)
+        pdf.ln(2)
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(0, 8, f"Consultor(a): {st.session_state.enc_vendedor}", ln=True)
+        pdf.cell(0, 8, f"Loja: {st.session_state.get('loja', 'NÃO INFORMADA')}", ln=True)
+        pdf.cell(0, 8, f"Data: {datetime.now().strftime('%d/%m/%Y às %H:%M')}", ln=True)
+        
+        pdf.ln(20)
+        pdf.set_font("Arial", 'I', 10)
+        pdf.multi_cell(0, 5, "Este documento é um encaminhamento formal para a realização de exame oftalmológico. Favor apresentar este formulário na recepção da clínica.", align='C')
 
-        nome_arquivo = "".join(c for c in nome_cliente.upper() if c.isalnum() or c in " _-").strip()
-        nome_arquivo += ".pdf"
-
-        pdf_buffer.seek(0)
-
-        st.download_button(
-            label="📥 Baixar PDF",
-            data=pdf_buffer,
-            file_name=nome_arquivo,
-            mime="application/pdf",
-            key="download_pdf_unico"
-        )
-
-        st.success(f"✅ PDF gerado com sucesso! Pronto para baixar como: **{nome_arquivo}**")
+        # Retorna os bytes diretamente
+        return pdf.output()
 
     except Exception as e:
-        st.error(f"❌ Erro ao exibir PDF: {str(e)}")
+        print(f"Erro PDF: {e}")
+        return None

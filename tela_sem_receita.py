@@ -1,7 +1,7 @@
 import streamlit as st
-from datetime import datetime
-from google_planilha import GooglePlanilha
-
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+from google_planilha import GooglePlanilha  
 
 def tela_sem_receita():
     st.subheader("🔄 RETORNO SEM RESERVA")
@@ -10,7 +10,12 @@ def tela_sem_receita():
     st.markdown("---")
 
     if 'gsheets' not in st.session_state:
-        st.session_state.gsheets = GooglePlanilha()
+        try:
+            st.session_state.gsheets = GooglePlanilha()
+        except Exception as e:
+            st.error("❌ Falha ao conectar com Google Sheets")
+            st.exception(e)
+            return
     gsheets = st.session_state.gsheets
 
     # Carregar vendedores
@@ -49,11 +54,13 @@ def tela_sem_receita():
             if not vendedor or not cliente:
                 st.error("⚠️ Preencha todos os campos!")
             else:
+                # ✅ Usa horário de São Paulo
+                horario_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
                 st.session_state.retorno_confirmado = {
                     'vendedor': vendedor,
                     'cliente': cliente,
-                    'data': datetime.now().strftime("%d/%m/%Y"),
-                    'hora': datetime.now().strftime("%H:%M")
+                    'data': horario_sp.strftime("%d/%m/%Y"),
+                    'hora': horario_sp.strftime("%H:%M")
                 }
 
     with col2:
@@ -69,43 +76,40 @@ def tela_sem_receita():
         st.markdown("---")
         st.success(f"✅ **CONFIRMADO**: {conf['cliente']} | Vendedor: {conf['vendedor']}")
 
-        # ✅ Registrar diretamente, SEM validar histórico de perda
+        # ✅ VALIDAÇÃO: Verifica se o cliente teve 'perda = 1' nos últimos 30 dias
         if st.button("💾 Registrar no Sistema", type="secondary", key="btn_salvar_retorno"):
             if not conf['vendedor'] or not conf['cliente']:
                 st.error("⚠️ Dados incompletos!")
                 return
 
             try:
+                # ✅ Horário de São Paulo
+                horario_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+                # ✅ Tudo certo: registrar
                 dados = {
                     'loja': st.session_state.loja,
-                    'atendente': st.session_state.nome_atendente,
                     'vendedor': conf['vendedor'],
                     'cliente': conf['cliente'],
-                    'data': conf['data'],
+                    'data': horario_sp.strftime("%d/%m/%Y"),
+                    'hora': horario_sp.strftime("%H:%M"),
                     'atendimento': '1',
                     'receita': '',
                     'venda': '1',
-                    'perda': '-1',  # Baixa a perda (opcional, depende da lógica do seu negócio)
+                    'perda': '-1', 
                     'reserva': '',
                     'pesquisa': '',
-                    'consulta': '',
-                    'hora': conf['hora']
+                    'exame': '',  
                 }
 
                 if gsheets.registrar_atendimento(dados):
                     st.balloons()
-                    st.success("✅ Dados enviados para a planilha!")
-                    # Limpa após salvar
+                    st.success("✅ Retorno registrado com sucesso!")
                     del st.session_state.retorno_confirmado
-                    st.session_state.etapa = 'loja'
+                    st.session_state.etapa = 'atendimento'
                     st.rerun()
                 else:
                     st.error("❌ Falha ao salvar na planilha.")
 
             except Exception as e:
-                st.error(f"❌ Erro ao salvar na planilha: {e}")
-<<<<<<< HEAD
-                return
-=======
-                return
->>>>>>> d8faf8892876228deebbf43392b052e30625df9c
+                st.error(f"❌ Erro ao verificar histórico de perda ou salvar: {e}")

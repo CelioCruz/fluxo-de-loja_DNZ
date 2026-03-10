@@ -1,0 +1,8 @@
+﻿streamlit
+gspread
+pandas
+pydrive2
+fpdf2
+bcrypt
+python-dateutil
+pytz

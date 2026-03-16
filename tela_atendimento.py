@@ -13,7 +13,8 @@ def tela_atendimento_principal():
         ("🔍 Atendimento sem Receita", "pesquisa"),
         ("📅 Exame de Vista", "consulta"),
         ("🌐 GOOGLE", "google_registro"),  # Novo botão
-        ("📊 Relatório por Vendedor", "relatorio_vendedor")
+        ("📊 Relatório por Vendedor", "relatorio_vendedor"),
+        ("📋 Relatório de Reservas", "relatorio_reservas")
     ]
 
     # Exibe os botões em colunas

@@ -82,6 +82,14 @@ elif st.session_state.etapa == 'subtela':
 if st.session_state.nome_atendente:
     st.sidebar.markdown(f"**👤 Atendente:** {st.session_state.nome_atendente}")
     st.sidebar.markdown(f"**🏪 Loja:** {st.session_state.loja}")
+    
+    # ➕ Botão de Cadastro para Administradores
+    if st.session_state.nome_atendente in ["JUSCELIO", "LEONARDO", "LETICIA"]:
+        if st.sidebar.button("➕ Gerenciar Usuários", use_container_width=True):
+            st.session_state.etapa = 'subtela'
+            st.session_state.subtela = 'cadastro_usuario'
+            st.rerun()
+
     if st.sidebar.button("🚪 Sair", use_container_width=True):
         st.session_state.clear()
         st.rerun()

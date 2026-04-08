@@ -2,7 +2,7 @@ import streamlit as st
 
 def tela_selecao_loja():
     st.title("🏪 SELECIONE A LOJA")
-    lojas = [f"LOJA {str(i).zfill(2)}" for i in range(1, 8)]
+    lojas = [f"LOJA {str(i).zfill(2)}" for i in range(1, 9)]
     loja = st.selectbox("Selecione sua loja:", lojas, index=0, key="loja_select")
     col1, col2 = st.columns(2)
     with col1:

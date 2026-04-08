@@ -39,6 +39,10 @@
         {
             "nome": "LOJA07",
             "senha_hash": "$2b$12$FKhFz31SIgAF2a6fxM/fz.Q40P0/AiO3IJhc4Qh226ryFCk8jId1C"
+        },
+        {
+            "nome": "LOJA08",
+            "senha_hash": "$2b$12$DvyX4rW23/dJiR1pXGawmOc4S.kOE.V8URcKIfOBTK9Z3IgkG7Kry"
         }
  ]
     

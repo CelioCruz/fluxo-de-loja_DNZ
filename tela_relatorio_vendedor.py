@@ -147,7 +147,7 @@ def mostrar():
             "VENDA": ["venda", "pedidos"],
             "PERDA": ["perda", "cancelamentos"],
             "RESERVA": ["reserva", "agendamento"],
-            "GOOGLE": ["google", "google1"] # Adicionado campo Google
+            "GOOGLE": ["google"] # Adicionado campo Google
         }
 
         colunas_finais = {}

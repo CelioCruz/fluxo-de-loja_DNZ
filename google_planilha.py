@@ -22,7 +22,7 @@ class GooglePlanilha:
 
     COLUNAS_RELATORIO = [
         'LOJA', 'DATA', 'HORA', 'VENDEDOR', 'CLIENTE', 'ATENDIMENTOS', 'RECEITAS',
-        'PERDAS', 'VENDAS', 'RESERVAS', 'PESQUISAS', 'EXAME DE VISTA', 'GOOGLE1'
+        'PERDAS', 'VENDAS', 'RESERVAS', 'PESQUISAS', 'EXAME DE VISTA', 'GOOGLE'
     ]
 
     def __init__(self):
@@ -72,6 +72,12 @@ class GooglePlanilha:
         if not self.aba_relatorio: return
         try:
             cabecalhos = [c.strip() for c in self.aba_relatorio.row_values(1)]
+            # Ajuste para renomear se for GOOGLE1
+            if "GOOGLE1" in cabecalhos:
+                idx = cabecalhos.index("GOOGLE1")
+                self.aba_relatorio.update_cell(1, idx + 1, "GOOGLE")
+                cabecalhos[idx] = "GOOGLE"
+            
             if len(cabecalhos) < len(self.COLUNAS_RELATORIO) or cabecalhos[:len(self.COLUNAS_RELATORIO)] != self.COLUNAS_RELATORIO:
                 self.aba_relatorio.update("A1", [self.COLUNAS_RELATORIO])
         except: pass
@@ -95,7 +101,7 @@ class GooglePlanilha:
                 ('atendimento', 'ATENDIMENTOS'), ('receita', 'RECEITAS'),
                 ('perda', 'PERDAS'), ('venda', 'VENDAS'), ('reserva', 'RESERVAS'),
                 ('pesquisa', 'PESQUISAS'), ('consulta', 'EXAME DE VISTA'),
-                ('google1', 'GOOGLE1') # Mapeamento da coluna M
+                ('google', 'GOOGLE') # Mapeamento da coluna M renomeado
             ]
             
             valores = [str(dados.get(campo, '')).strip() for campo, _ in mapeamento]
@@ -107,11 +113,60 @@ class GooglePlanilha:
 
     def get_vendedores_por_loja(self, loja: str = None) -> List[Dict]:
         try:
-            if 'vendedores_cache' not in st.session_state:
-                coluna_a = self.aba_vendedores.col_values(1) if self.aba_vendedores else []
-                st.session_state.vendedores_cache = [{"VENDEDOR": n.strip()} for n in coluna_a if n.strip()]
-            return st.session_state.vendedores_cache
+            # Não usa mais cache para permitir ver mudanças de status
+            dados = self.aba_vendedores.get_all_values() if self.aba_vendedores else []
+            if not dados: return []
+            
+            vendedores = []
+            for i, linha in enumerate(dados):
+                if not linha: continue
+                nome = linha[0].strip()
+                if not nome or nome.upper() == "VENDEDOR": continue
+                
+                status = "ATIVO"
+                if len(linha) > 1:
+                    status = linha[1].strip().upper() or "ATIVO"
+                
+                vendedores.append({"VENDEDOR": nome, "STATUS": status, "row": i + 1})
+            
+            # Por padrão, as telas de atendimento só vêem ATIVOS
+            return [v for v in vendedores if v["STATUS"] == "ATIVO"]
         except: return []
+
+    def get_todos_vendedores(self) -> List[Dict]:
+        try:
+            dados = self.aba_vendedores.get_all_values() if self.aba_vendedores else []
+            if not dados: return []
+            
+            vendedores = []
+            for i, linha in enumerate(dados):
+                if not linha: continue
+                nome = linha[0].strip()
+                if not nome or nome.upper() == "VENDEDOR": continue
+                
+                status = "ATIVO"
+                if len(linha) > 1:
+                    status = linha[1].strip().upper() or "ATIVO"
+                
+                vendedores.append({"VENDEDOR": nome, "STATUS": status, "row": i + 1})
+            return vendedores
+        except: return []
+
+    def adicionar_vendedor(self, nome: str) -> bool:
+        try:
+            if not self.aba_vendedores: return False
+            self.aba_vendedores.append_row([nome.upper(), "ATIVO"])
+            if 'vendedores_cache' in st.session_state: del st.session_state.vendedores_cache
+            return True
+        except: return False
+
+    def atualizar_status_vendedor(self, row: int, novo_status: str) -> bool:
+        try:
+            if not self.aba_vendedores: return False
+            self.aba_vendedores.update_cell(row, 2, novo_status.upper())
+            if 'vendedores_cache' in st.session_state: del st.session_state.vendedores_cache
+            return True
+        except: return False
 
     def limpar_reservas_antigas(self, minutos=1) -> int:
         aba_reservas = self._get_worksheet("reservas")

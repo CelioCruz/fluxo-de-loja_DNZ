@@ -37,7 +37,7 @@ def tela_google_registro():
                     'vendedor': vendedor,
                     'cliente': cliente,
                     'atendimento': '1',
-                    'google1': '1', # Grava o valor 1 na coluna M
+                    'google': '1', # Grava o valor 1 na coluna M
                     'receita': '', 'venda': '', 'perda': '', 'reserva': '', 'pesquisa': '', 'consulta': ''
                 }
                 

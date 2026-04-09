@@ -89,6 +89,11 @@ if st.session_state.nome_atendente:
             st.session_state.etapa = 'subtela'
             st.session_state.subtela = 'cadastro_usuario'
             st.rerun()
+            
+        if st.sidebar.button("➕ Gerenciar Vendedores", use_container_width=True):
+            st.session_state.etapa = 'subtela'
+            st.session_state.subtela = 'cadastro_vendedor'
+            st.rerun()
 
     if st.sidebar.button("🚪 Sair", use_container_width=True):
         st.session_state.clear()
